@@ -7,6 +7,7 @@ A full-stack real-time chat and project collaboration platform. Teams can commun
 ## Features
 
 ### Chat
+
 - Real-time messaging with Socket.IO
 - Group channels and direct messages
 - Threaded replies and emoji reactions
@@ -15,6 +16,7 @@ A full-stack real-time chat and project collaboration platform. Teams can commun
 - Message search and pinning
 
 ### Collaboration
+
 - Assign tasks to team members with deadlines
 - Kanban board with drag-and-drop
 - Subtasks, priorities, and task dependencies
@@ -23,6 +25,7 @@ A full-stack real-time chat and project collaboration platform. Teams can commun
 - Activity log and audit trail
 
 ### General
+
 - JWT authentication with secure password hashing
 - Workspace-based multi-team support
 - Role-based access control (Owner → Manager → Member → Guest)
@@ -34,31 +37,34 @@ A full-stack real-time chat and project collaboration platform. Teams can commun
 ## Tech Stack
 
 ### Frontend
-| Tech | Purpose |
-|------|---------|
-| React + Vite | UI framework |
-| Tailwind CSS | Styling |
-| Socket.IO client | Real-time events |
-| TanStack Query | Server state & caching |
-| Zustand | Global state management |
+
+| Tech             | Purpose                 |
+| ---------------- | ----------------------- |
+| React + Vite     | UI framework            |
+| Tailwind CSS     | Styling                 |
+| Socket.IO client | Real-time events        |
+| TanStack Query   | Server state & caching  |
+| Zustand          | Global state management |
 
 ### Backend
-| Tech | Purpose |
-|------|---------|
-| Node.js + Express | REST API |
-| Socket.IO | Real-time messaging |
-| Prisma ORM | PostgreSQL queries |
-| Mongoose | MongoDB queries |
-| Bull + Redis | Background job queue |
-| JWT + bcryptjs | Authentication |
-| Winston + Morgan | Logging |
+
+| Tech              | Purpose              |
+| ----------------- | -------------------- |
+| Node.js + Express | REST API             |
+| Socket.IO         | Real-time messaging  |
+| Prisma ORM        | PostgreSQL queries   |
+| Mongoose          | MongoDB queries      |
+| Bull + Redis      | Background job queue |
+| JWT + bcryptjs    | Authentication       |
+| Winston + Morgan  | Logging              |
 
 ### Databases
-| Database | Used for |
-|----------|---------|
-| MongoDB | Messages, threads, reactions, read receipts |
+
+| Database          | Used for                                       |
+| ----------------- | ---------------------------------------------- |
+| MongoDB           | Messages, threads, reactions, read receipts    |
 | PostgreSQL (Neon) | Users, workspaces, tasks, roles, notifications |
-| Redis | Sessions, typing indicators, job queue |
+| Redis             | Sessions, typing indicators, job queue         |
 
 ---
 
@@ -81,17 +87,24 @@ collabify/
     ├── prisma/
     │   └── schema.prisma     # PostgreSQL schema
     ├── src/
+    │   ├── app.js            # Express app setup
     │   ├── config/
     │   │   ├── connectMongoDB.js
     │   │   ├── connectPostgres.js
-    │   │   └── logger.js
+    │   ├── features/
+    │   │   ├── auth/
+    │   │   ├── chat/
+    │   │   ├── notification/
+    │   │   ├── tasks/
+    │   │   └── workspace/
     │   ├── models/           # Mongoose models (MongoDB)
     │   ├── routes/           # Express REST endpoints
-    │   ├── sockets/          # Socket.IO event handlers
+    │   ├── socket/           # Socket.IO event handlers
     │   ├── middleware/       # Auth, error handling
     │   ├── jobs/             # Bull background jobs
     │   ├── utils/
-    │   └── index.js
+    │   │   └── logger.js
+    │   └── server.js
     └── package.json
 ```
 
@@ -126,15 +139,15 @@ Copy the example env file and fill in your values:
 cp .env.example .env
 ```
 
-| Variable | Description |
-|----------|-------------|
-| `PORT` | Server port (default 3003) |
-| `MONGODB_URI` | MongoDB connection string |
-| `DATABASE_URL` | Neon PostgreSQL pooled connection URL |
-| `DIRECT_URL` | Neon PostgreSQL direct connection URL |
-| `JWT_SECRET` | Secret key for signing JWT tokens |
-| `JWT_EXPIRES_IN` | Token expiry duration (e.g. `7d`) |
-| `CLIENT_URL` | Frontend URL for CORS (e.g. `http://localhost:5173`) |
+| Variable         | Description                                          |
+| ---------------- | ---------------------------------------------------- |
+| `PORT`           | Server port (default 3003)                           |
+| `MONGODB_URI`    | MongoDB connection string                            |
+| `DATABASE_URL`   | Neon PostgreSQL pooled connection URL                |
+| `DIRECT_URL`     | Neon PostgreSQL direct connection URL                |
+| `JWT_SECRET`     | Secret key for signing JWT tokens                    |
+| `JWT_EXPIRES_IN` | Token expiry duration (e.g. `7d`)                    |
+| `CLIENT_URL`     | Frontend URL for CORS (e.g. `http://localhost:5173`) |
 
 ### 3. Set up the database
 
@@ -168,12 +181,14 @@ Client runs at `http://localhost:5173`.
 ## Database Schema
 
 ### MongoDB collections
+
 - `channels` — group channels and DMs
 - `messages` — all messages and threaded replies (via `parentId`)
 - `reactions` — emoji reactions per message
 - `read_receipts` — last read position per user per channel
 
 ### PostgreSQL tables
+
 - `users` — accounts and auth
 - `workspaces` — top-level team containers
 - `workspace_members` — user↔workspace with roles
@@ -184,6 +199,7 @@ Client runs at `http://localhost:5173`.
 - `notifications` — in-app alerts
 
 ### Redis key patterns
+
 - `session:{userId}:{tokenId}` — auth session cache (TTL 7d)
 - `typing:{channelId}:{userId}` — typing indicator (TTL 5s)
 
