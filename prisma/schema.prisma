@@ -6,3 +6,32 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+enum userStatus {
+  ACTIVE
+  INACTIVE
+  BANNED
+}
+enum authProvider {
+   LOCAL
+  GOOGLE
+  GITHUB
+}
+
+model User {
+  id String @id @default(uuid())
+  firstName String
+  lastName String
+  username String @unique
+  avatar_url String?
+  email String @unique
+  password String?
+  provider authProvider @default(LOCAL)
+  status userStatus @default(ACTIVE)
+  is_verified Boolean @default(false)
+  last_seen DateTime?
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  deleted_at DateTime?
+}
+
