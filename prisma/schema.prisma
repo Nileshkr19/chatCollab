@@ -34,4 +34,3 @@ model User {
   updated_at DateTime @updatedAt
   deleted_at DateTime?
 }
-
