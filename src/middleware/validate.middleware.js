@@ -10,6 +10,7 @@ const validate = (schema) => {
       return next(new apiError(400, `Validation error: ${errorMessages}`));
     }
     req.body = result.data;
+    next();
   };
 };
 

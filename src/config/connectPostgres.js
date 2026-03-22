@@ -1,56 +1,53 @@
-import pkg from "@prisma/client";
-const { PrismaClient } = pkg;
-import { PrismaNeon } from "@prisma/adapter-neon";
+import dns from "dns";
+import { PrismaClient } from "@prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
+import pkg from "pg";
 import logger from "../utils/logger.js";
 
-const createPrismaClient = () => {
-  const adapter = new PrismaNeon({
-    connectionString: process.env.DATABASE_URL,
-  });
+dns.setDefaultResultOrder("ipv4first");
 
-  return new PrismaClient({
-    adapter,
-    log: [
-      { emit: "event", level: "query" },
-      { emit: "event", level: "error" },
-      { emit: "event", level: "warn" },
-      { emit: "event", level: "info" },
-    ],
-  });
-};
+const { Pool } = pkg;
 
-const prisma = createPrismaClient();
+const connectionString = process.env.DATABASE_URL;
 
-prisma.$on("query", (e) => {
-  logger.debug(
-    `Query: ${e.query} - Params: ${e.params} - Duration: ${e.duration}ms`,
-  );
+if (!connectionString) {
+  logger.error("DATABASE_URL is not defined in environment variables");
+  process.exit(1);
+}
+
+const pool = new Pool({
+  connectionString,
+  ssl: {
+    rejectUnauthorized: false,
+  },
+  max: 10,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 5000,
 });
 
-prisma.$on("error", (e) => {
-  logger.error(`Prisma Error: ${e.message}`);
+const adapter = new PrismaPg(pool);
+
+const prisma = new PrismaClient({
+  adapter,
 });
 
-prisma.$on("warn", (e) => {
-  logger.warn(`Prisma Warning: ${e.message}`);
+prisma.$on("error", (err) => {
+  logger.error(`Prisma error: ${err.message}`);
 });
 
-prisma.$on("info", (e) => {
-  logger.info(`Prisma Info: ${e.message}`);
+prisma.$on("warn", (warn) => {
+  logger.warn(`Prisma warning: ${warn.message}`);
 });
 
 const connectPostgres = async () => {
-  if (!process.env.DATABASE_URL) {
-    logger.error("DATABASE_URL is not defined in environment variables");
-    throw new Error("DATABASE_URL is not defined in environment variables");
-  }
   try {
     await prisma.$connect();
+    // Test the actual connection with a real query
+    await prisma.$queryRaw`SELECT 1`;
     logger.info("Connected to PostgreSQL database successfully");
-    return prisma;
   } catch (err) {
-    logger.error(`Failed to connect to PostgreSQL database: ${err.message}`);
-    throw err;
+    logger.error("Error connecting to PostgreSQL database", err);
+    process.exit(1);
   }
 };
 

@@ -5,7 +5,7 @@ const REFRESH_TOKEN_EXPIRATION = 7 * 24 * 60 * 60; // 7 days in seconds
 
 export const storeRefreshToken = async (userId, tokenId, token) => {
   try {
-    const key = `refresh:${userId}:${token}`;
+    const key = `refresh:${userId}:${tokenId}`;
     await getRedis().set(
       key,
       token,
@@ -20,9 +20,9 @@ export const storeRefreshToken = async (userId, tokenId, token) => {
   }
 };
 
-export const getRefreshToken = async (userId, token) => {
+export const getRefreshToken = async (userId, tokenId) => {
   try {
-    const key = `refresh:${userId}:${token}`;
+    const key = `refresh:${userId}:${tokenId}`;
     const result = await getRedis().get(key);
     logger.info(
       `Retrieved refresh token for user ${userId}: ${result ? "valid" : "invalid"}`,
@@ -36,9 +36,9 @@ export const getRefreshToken = async (userId, token) => {
   }
 };
 
-export const deleteRefreshToken = async (userId, token) => {
+export const deleteRefreshToken = async (userId, tokenId) => {
   try {
-    const key = `refresh:${userId}:${token}`;
+    const key = `refresh:${userId}:${tokenId}`;
     await getRedis().del(key);
     logger.info(`Deleted refresh token for user ${userId}`);
   } catch (err) {

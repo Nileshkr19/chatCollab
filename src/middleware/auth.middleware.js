@@ -6,14 +6,14 @@ export const protect = (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      throw new apiError("No token provided", 401);
+      throw new apiError(401, "No token provided");
     }
 
     const token = authHeader.split(" ")[1];
     const decoded = verifyAccessToken(token);
 
     if (!decoded) {
-      throw new apiError("Invalid token", 401);
+      throw new apiError(401, "Invalid token");
     }
 
     req.user = decoded;

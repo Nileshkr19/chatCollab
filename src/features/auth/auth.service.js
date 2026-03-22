@@ -12,8 +12,6 @@ import {
   deleteAllRefreshTokens,
 } from "../../utils/tokens.js";
 import logger from "../../utils/logger.js";
-import logger from "../../utils/logger.js";
-import { log } from "winston";
 
 export const registerService = async ({
   firstName,
@@ -60,7 +58,7 @@ export const registerService = async ({
       avatar_url: true,
       status: true,
       is_verified: true,
-      createdAt: true,
+      created_at: true,
     },
   });
 
@@ -244,7 +242,7 @@ export const getMeService = async (userId) => {
       is_verified: true,
       provider: true,
       last_seen: true,
-      createdAt: true,
+      created_at: true,
     },
   });
 
@@ -256,3 +254,28 @@ export const getMeService = async (userId) => {
 
   return user;
 };
+
+export const forgetPasswordService = async (email) => {
+  const user = await prisma.user.findUnique({
+    where : {email},
+    select: {
+      id: true,
+      email: true,
+      username: true,
+    }
+  })
+  if (!user || user.status === "banned" || user.deleted_at) {
+    const error = new Error("User account is not active");
+    error.status = 403;
+    throw error;
+  }
+  const resetToken = generateAccessToken({
+    userId: user.id,
+    email: user.email,
+    username: user.username,
+  });
+
+  const resetLink = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
+
+  
+}
