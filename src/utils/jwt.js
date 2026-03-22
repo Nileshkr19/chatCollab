@@ -1,4 +1,3 @@
-import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import logger from "./logger.js";
 import { v4 as uuidv4 } from "uuid";
@@ -41,6 +40,7 @@ export const generateRefreshToken = (payload) => {
       expiresIn: REFRESH_TOKEN_EXPIRATION,
     },
   );
+  return { token, tokenId };
 };
 
 export const verifyAccessToken = (token) => {

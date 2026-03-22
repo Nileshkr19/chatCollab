@@ -27,6 +27,17 @@ const connectRedis = async () => {
   redis.on("error", (err) => {
     logger.error(`Failed to connect to Redis: ${err.message}`);
   });
+
+  // Test the connection with PING command
+  try {
+    await redis.ping();
+    logger.info("Redis connection verified");
+  } catch (err) {
+    logger.error(`Failed to verify Redis connection: ${err.message}`);
+    throw err;
+  }
+
+  return redis;
 };
 
 export const getRedis = () => {
