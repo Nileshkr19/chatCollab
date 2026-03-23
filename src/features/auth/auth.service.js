@@ -12,6 +12,34 @@ import {
   deleteAllRefreshTokens,
 } from "../../utils/tokens.js";
 import logger from "../../utils/logger.js";
+import {
+  sendForgotPasswordEmail,
+  sendVerificationEmail,
+} from "../../utils/sendEmail.js";
+
+import { getRedis } from "../../config/connectRedis.js";
+
+const hashResetToken = (token) => {
+  return crypto.createHash("sha256").update(token).digest("hex");
+};
+
+const PASSWORD_RESET_TOKEN_TTL_MS = 15 * 60 * 1000; // 15 minutes
+
+const VERIFICATION_TOKEN_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+const getVerificationBaseUrl = () =>
+  (
+    process.env.FRONTEND_URL ||
+    process.env.CLIENT_URL ||
+    "http://localhost:3000"
+  ).replace(/\/+$/, "") + "/verify-email";
+
+const getResetPasswordBaseUrl = () =>
+  (
+    process.env.FRONTEND_URL ||
+    process.env.CLIENT_URL ||
+    "http://localhost:3000"
+  ).replace(/\/+$/, "");
 
 export const registerService = async ({
   firstName,
@@ -21,25 +49,29 @@ export const registerService = async ({
   password,
 }) => {
   // Check if user already exists
-  const existingUser = await prisma.user.findUnique({
-    where: { email },
+  const existingUser = await prisma.user.findFirst({
+    where: {
+      OR: [{ email }, { username }],
+    },
+    select: {
+      email: true,
+      username: true,
+    },
   });
-  if (existingUser) {
-    const error = new Error("User already exists with this email");
-    error.status = 400;
-    throw error;
-  }
 
-  const existingUsername = await prisma.user.findUnique({
-    where: { username },
-  });
-  if (existingUsername) {
-    const error = new Error("Username is already taken");
-    error.status = 400;
+  if (existingUser) {
+    const field = existingUser.email === email ? "email" : "username";
+    const message =
+      field === "email" ? "Email already in use" : "Username already taken";
+    const error = new Error(message);
+    error.status = 409;
     throw error;
   }
 
   const hashedPassword = await hashPassword(password);
+
+  const verificationToken = crypto.randomBytes(32).toString("hex");
+  const hashedVerificationToken = hashResetToken(verificationToken);
 
   const user = await prisma.user.create({
     data: {
@@ -51,35 +83,27 @@ export const registerService = async ({
     },
     select: {
       id: true,
+      email: true,
       firstName: true,
       lastName: true,
-      username: true,
-      email: true,
-      avatar_url: true,
-      status: true,
-      is_verified: true,
-      created_at: true,
     },
   });
 
-  const accessToken = generateAccessToken({
-    userId: user.id,
-    email: user.email,
-    username: user.username,
-  });
+  await getRedis().set(
+    `verify:${user.id}`,
+    hashedVerificationToken,
+    "EX",
+    VERIFICATION_TOKEN_TTL_MS / 1000,
+  );
 
-  const { token: refreshToken, tokenId } = generateRefreshToken({
-    userId: user.id,
-  });
+  const verificationUrl = `${getVerificationBaseUrl()}?token=${verificationToken}&email=${encodeURIComponent(user.email)}`;
 
-  await storeRefreshToken(user.id, tokenId, refreshToken);
-
-  logger.info(`New user registered: ${user.email} (ID: ${user.id})`);
+  await sendVerificationEmail(user.email, verificationUrl);
+  logger.info(`Verification email sent to: ${email} (ID: ${user.id})`);
+  logger.info(`New user registered: ${email} (ID: ${user.id})`);
 
   return {
-    user,
-    accessToken,
-    refreshToken,
+    message: "Verification email sent. Please verify your account.",
   };
 };
 
@@ -87,13 +111,17 @@ export const loginService = async ({ email, password }) => {
   const user = await prisma.user.findUnique({
     where: { email },
   });
-  if (!user) {
+
+  const isPasswordValid = user
+    ? await verifyPassword(password, user.password)
+    : false;
+  if (!user || !isPasswordValid) {
     const error = new Error("Invalid email or password");
     error.status = 401;
     throw error;
   }
 
-  if (user.status === "banned") {
+  if (user.status === "BANNED") {
     const error = new Error(
       "Your account has been banned. Please contact support for more information.",
     );
@@ -109,10 +137,11 @@ export const loginService = async ({ email, password }) => {
     throw error;
   }
 
-  const isPasswordValid = await verifyPassword(password, user.password);
-  if (!isPasswordValid) {
-    const error = new Error("Invalid email or password");
-    error.status = 401;
+  if (!user.is_verified) {
+    const error = new Error(
+      "Email not verified. Please check your inbox for the verification email.",
+    );
+    error.status = 403;
     throw error;
   }
 
@@ -176,7 +205,7 @@ export const refreshTokenService = async (inComingRefreshToken) => {
     },
   });
 
-  if (!user || user.status === "banned" || user.deleted_at) {
+  if (!user || user.status === "BANNED" || user.deleted_at) {
     const error = new Error("User account is not active");
     error.status = 403;
     throw error;
@@ -255,27 +284,226 @@ export const getMeService = async (userId) => {
   return user;
 };
 
-export const forgetPasswordService = async (email) => {
+export const forgotPasswordService = async (email) => {
   const user = await prisma.user.findUnique({
-    where : {email},
+    where: { email },
     select: {
       id: true,
       email: true,
-      username: true,
-    }
-  })
-  if (!user || user.status === "banned" || user.deleted_at) {
-    const error = new Error("User account is not active");
-    error.status = 403;
-    throw error;
-  }
-  const resetToken = generateAccessToken({
-    userId: user.id,
-    email: user.email,
-    username: user.username,
+      status: true,
+      provider: true,
+      deleted_at: true,
+    },
   });
 
-  const resetLink = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
+  // always return same message — prevents email enumeration
+  if (!user || user.status === "BANNED" || user.deleted_at) {
+    return {
+      message:
+        "If an account with that email exists, a password reset link has been sent",
+    };
+  }
 
-  
-}
+  if (user.provider !== "LOCAL") {
+    const error = new Error(
+      "Password reset is only available for local accounts",
+    );
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const resetToken = crypto.randomBytes(32).toString("hex");
+  const hashedToken = hashResetToken(resetToken);
+
+  // store in Redis instead of PostgreSQL
+  await redis.set(
+    `reset:${hashedToken}`,
+    user.id,
+    "EX",
+    15 * 60, // 15 minutes
+  );
+
+  const resetUrl = `${getResetPasswordBaseUrl()}/reset-password?token=${resetToken}&email=${encodeURIComponent(user.email)}`;
+  await sendForgotPasswordEmail(user.email, resetUrl);
+
+  logger.info(`Password reset requested for: ${user.email} (ID: ${user.id})`);
+
+  return {
+    message:
+      "If an account with that email exists, a password reset link has been sent",
+  };
+};
+
+export const resetPasswordService = async ({ token, email, password }) => {
+  const hashedToken = hashResetToken(token);
+
+  // check Redis instead of PostgreSQL
+  const userId = await redis.get(`reset:${hashedToken}`);
+  if (!userId) {
+    const error = new Error("Invalid or expired reset token");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  // verify user still exists and is valid
+  const user = await prisma.user.findFirst({
+    where: {
+      id: userId,
+      email,
+      status: "ACTIVE",
+      deleted_at: null,
+      provider: "LOCAL",
+    },
+    select: {
+      id: true,
+      email: true,
+    },
+  });
+
+  if (!user) {
+    const error = new Error("Invalid or expired reset token");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const hashedPassword = await hashPassword(password);
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { password: hashedPassword },
+  });
+
+  // delete token from Redis — one time use
+  await redis.del(`reset:${hashedToken}`);
+
+  // logout all devices
+  await deleteAllRefreshTokens(user.id);
+
+  logger.info(`Password reset successful for: ${user.email} (ID: ${user.id})`);
+
+  return {
+    message: "Password reset successful. Please log in with your new password.",
+  };
+};
+
+export const verifyEmailService = async (token, email) => {
+  const hashedToken = hashResetToken(token);
+
+  const userId = await getRedis().get(`verify: ${hashedToken}`);
+  if (!userId) {
+    const error = new Error("Invalid or expired verification token");
+    error.status = 400;
+    throw error;
+  }
+
+  const user = await prisma.user.findFirst({
+    where: {
+      email,
+      status: "ACTIVE",
+      deleted_at: null,
+    },
+  });
+  if (!user) {
+    const error = new Error("Invalid or expired verification token");
+    error.status = 400;
+    throw error;
+  }
+  if (user.is_verified) {
+    return {
+      message: "Email is already verified. You can log in.",
+    };
+  }
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: {
+      is_verified: true,
+    },
+  });
+
+  await getRedis().del(`verify: ${hashedToken}`);
+
+  logger.info(
+    `Email verified successfully for user: ${user.email} (ID: ${user.id})`,
+  );
+
+  return {
+    message: "Email verified successfully. You can now log in.",
+  };
+};
+
+export const resendVerificationEmailService = async (email) => {
+  const user = await prisma.user.findUnique({
+    where: { email },
+  });
+
+  if (!user || user.is_verified) {
+    return {
+      message:
+        "If an account with that email exists and is not verified, a verification email has been sent",
+    };
+  }
+
+  const existingToken = await getRedis().get(`verify:${user.id}`);
+  if (existingToken) {
+    await getRedis().del(`verify: token:${existingToken}`);
+    await getRedis().del(`verify:${user.id}`);
+  }
+
+  const rawVerificationToken = crypto.randomBytes(32).toString("hex");
+  const hashedVerificationToken = hashResetToken(rawVerificationToken);
+
+  await getRedis().set(
+    `verify:${hashedVerificationToken}`,
+    user.id,
+    "EX",
+    VERIFICATION_TOKEN_TTL_MS / 1000,
+  );
+
+  const verificationUrl = `${getVerificationBaseUrl()}?token=${rawVerificationToken}&email=${encodeURIComponent(user.email)}`;
+
+  await sendVerificationEmail(user.email, verificationUrl);
+  logger.info(`Resent verification email to: ${email} (ID: ${user.id})`);
+
+  return {
+    message:
+      "If an account with that email exists and is not verified, a verification email has been sent",
+  };
+};
+
+export const resendForgotPasswordEmailService = async (email) => {
+  const user = await prisma.user.findUnique({
+    where: { email },
+  });
+
+  if (!user || user.status === "BANNED" || user.deleted_at) {
+    return {
+      message: "Password reset email sent if an account with that email exists",
+    };
+  }
+
+  const existingToken = await getRedis().get(`reset:${user.id}`);
+  if (existingToken) {
+    await getRedis().del(`reset:${existingToken}`);
+    await getRedis().del(`reset:${user.id}`);
+  }
+
+  const rawResetToken = crypto.randomBytes(32).toString("hex");
+  const hashedResetToken = hashResetToken(rawResetToken);
+
+  await getRedis().set(
+    `reset:${hashedResetToken}`,
+    user.id,
+    "EX",
+    PASSWORD_RESET_TOKEN_TTL_MS / 1000,
+  );
+
+  const resetUrl = `${getResetPasswordBaseUrl()}/reset-password?token=${rawResetToken}&email=${encodeURIComponent(user.email)}`;
+
+  await sendForgotPasswordEmail(user.email, resetUrl);
+  logger.info(`Resent password reset email to: ${email} (ID: ${user.id})`);
+
+  return {
+    message: "Password reset email sent if an account with that email exists",
+  };
+};
