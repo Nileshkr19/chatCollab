@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import { prisma } from "../../config/connectPostgres.js";
 import { hashPassword, verifyPassword } from "../../utils/password.js";
 import {
@@ -25,7 +26,7 @@ const hashResetToken = (token) => {
 
 const PASSWORD_RESET_TOKEN_TTL_MS = 15 * 60 * 1000; // 15 minutes
 
-const VERIFICATION_TOKEN_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+const VERIFICATION_TOKEN_TTL_MS = 15 * 60 * 1000; // 15 minutes
 
 const getVerificationBaseUrl = () =>
   (
@@ -73,34 +74,35 @@ export const registerService = async ({
   const verificationToken = crypto.randomBytes(32).toString("hex");
   const hashedVerificationToken = hashResetToken(verificationToken);
 
-  const user = await prisma.user.create({
-    data: {
+  await getRedis().set(
+    `pending:user:${hashedVerificationToken}`,
+    JSON.stringify({
       firstName,
       lastName,
       username,
       email,
       password: hashedPassword,
-    },
-    select: {
-      id: true,
-      email: true,
-      firstName: true,
-      lastName: true,
-    },
-  });
-
-  await getRedis().set(
-    `verify:${user.id}`,
-    hashedVerificationToken,
+    }),
     "EX",
     VERIFICATION_TOKEN_TTL_MS / 1000,
   );
 
   const verificationUrl = `${getVerificationBaseUrl()}?token=${verificationToken}&email=${encodeURIComponent(user.email)}`;
 
-  await sendVerificationEmail(user.email, verificationUrl);
-  logger.info(`Verification email sent to: ${email} (ID: ${user.id})`);
-  logger.info(`New user registered: ${email} (ID: ${user.id})`);
+  try {
+    await sendVerificationEmail(email, verificationUrl);
+    logger.info(`Verification email sent to: ${email}`);
+  } catch (emailError) {
+    await getRedis().del(`pending:user:${hashedVerificationToken}`);
+    logger.error(`Failed to send verification email to ${email}:`, emailError);
+    const error = new Error(
+      "Failed to send verification email. Please try again later.",
+    );
+    error.status = 500;
+    throw error;
+  }
+
+  logger.info(`User registration initiated: ${email} (Username: ${username})`);
 
   return {
     message: "Verification email sent. Please verify your account.",
@@ -389,85 +391,54 @@ export const resetPasswordService = async ({ token, email, password }) => {
 export const verifyEmailService = async (token, email) => {
   const hashedToken = hashResetToken(token);
 
-  const userId = await getRedis().get(`verify: ${hashedToken}`);
-  if (!userId) {
+  const pendingUserData = await getRedis().get(`pending:user:${hashedToken}`);
+  if (!pendingUserData) {
     const error = new Error("Invalid or expired verification token");
-    error.status = 400;
+    error.statusCode = 400;
     throw error;
   }
 
-  const user = await prisma.user.findFirst({
-    where: {
-      email,
-      status: "ACTIVE",
-      deleted_at: null,
-    },
-  });
-  if (!user) {
-    const error = new Error("Invalid or expired verification token");
-    error.status = 400;
+  const pendingUser = JSON.parse(pendingUserData);
+
+  if (pendingUser.email !== email) {
+    const error = new Error(
+      "Invalid verification token for the provided email",
+    );
+    error.statusCode = 400;
     throw error;
   }
-  if (user.is_verified) {
-    return {
-      message: "Email is already verified. You can log in.",
-    };
-  }
 
-  await prisma.user.update({
-    where: { id: user.id },
+  const user = await prisma.user.create({
     data: {
+      firstName: pendingUser.firstName,
+      lastName: pendingUser.lastName,
+      username: pendingUser.username,
+      email: pendingUser.email,
+      password: pendingUser.password,
       is_verified: true,
     },
   });
 
-  await getRedis().del(`verify: ${hashedToken}`);
-
-  logger.info(
-    `Email verified successfully for user: ${user.email} (ID: ${user.id})`,
-  );
-
-  return {
-    message: "Email verified successfully. You can now log in.",
-  };
-};
-
-export const resendVerificationEmailService = async (email) => {
-  const user = await prisma.user.findUnique({
-    where: { email },
+  await getRedis().del(`pending:user:${hashedToken}`);
+  const accessToken = generateAccessToken({
+    userId: user.id,
+    email: user.email,
+    username: user.username,
   });
 
-  if (!user || user.is_verified) {
-    return {
-      message:
-        "If an account with that email exists and is not verified, a verification email has been sent",
-    };
-  }
+  const { token: refreshToken, tokenId } = generateRefreshToken({
+    userId: user.id,
+  });
+  await storeRefreshToken(user.id, tokenId, refreshToken);
 
-  const existingToken = await getRedis().get(`verify:${user.id}`);
-  if (existingToken) {
-    await getRedis().del(`verify: token:${existingToken}`);
-    await getRedis().del(`verify:${user.id}`);
-  }
-
-  const rawVerificationToken = crypto.randomBytes(32).toString("hex");
-  const hashedVerificationToken = hashResetToken(rawVerificationToken);
-
-  await getRedis().set(
-    `verify:${hashedVerificationToken}`,
-    user.id,
-    "EX",
-    VERIFICATION_TOKEN_TTL_MS / 1000,
+  logger.info(
+    `User email verified and account created: ${email} (ID: ${user.id})`,
   );
-
-  const verificationUrl = `${getVerificationBaseUrl()}?token=${rawVerificationToken}&email=${encodeURIComponent(user.email)}`;
-
-  await sendVerificationEmail(user.email, verificationUrl);
-  logger.info(`Resent verification email to: ${email} (ID: ${user.id})`);
-
   return {
-    message:
-      "If an account with that email exists and is not verified, a verification email has been sent",
+    message: "Email verified successfully. Your account has been created.",
+    user,
+    accessToken,
+    refreshToken,
   };
 };
 

@@ -9,7 +9,6 @@ import {
   resetPasswordService,
   verifyEmailService,
   resendForgotPasswordEmailService,
-  resendVerificationEmailService,
 } from "./auth.service.js";
 
 import logger from "../../utils/logger.js";
@@ -187,20 +186,5 @@ export const resendForgotPasswordEmail = asyncHandler(async (req, res) => {
   } catch (err) {
     logger.error("Error occurred while resending password reset email", err);
     throw new apiError(500, "Failed to resend password reset email");
-  }
-});
-
-export const resendVerificationEmail = asyncHandler(async (req, res) => {
-  try {
-    const { token, email } = req.query;
-    const result = await resendVerificationEmailService(token, email);
-    return res
-      .status(200)
-      .json(
-        new apiResponse(true, "Verification email resent successfully", result),
-      );
-  } catch (err) {
-    logger.error("Error occurred while resending verification email", err);
-    throw new apiError(500, "Failed to resend verification email");
   }
 });

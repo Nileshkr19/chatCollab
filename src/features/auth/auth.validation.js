@@ -21,8 +21,12 @@ export const registerSchema = z.object({
     )
     .trim(),
 
-  email: z.string().email("Invalid email address").toLowerCase().trim(),
-
+  email: z
+    .string()
+    .email("Invalid email address")
+    .trim()
+    .lowercase()
+,
   password: z
     .string()
     .min(6, "Password must be at least 8 characters long")
@@ -33,7 +37,11 @@ export const registerSchema = z.object({
 });
 
 export const loginSchema = z.object({
-  email: z.string().email("Invalid email address").toLowerCase().trim(),
+  email: z
+    .string()
+    .email("Invalid email address")
+    .trim()
+    .lowercase(),
   password: z.string().min(1, "Password is required"),
 });
 
@@ -43,9 +51,17 @@ export const refreshTokenSchema = z.object({
 
 export const resetPasswordSchema = z.object({
   token: z.string().min(1, "Reset token is required"),
-  email: z.string().email("Invalid email address").toLowerCase().trim(),
+  email: z
+    .string()
+    .email("Invalid email address")
+    .trim()
+    .lowercase(),
 });
 
 export const forgotPasswordSchema = z.object({
-  email: z.string().email("Invalid email address").toLowerCase().trim(),
+  email: z
+    .string()
+    .email("Invalid email address")
+    .trim()
+    .lowercase(),
 });

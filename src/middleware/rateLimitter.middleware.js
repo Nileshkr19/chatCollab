@@ -2,8 +2,11 @@ import { ipKeyGenerator, rateLimit } from "express-rate-limit";
 import { RedisStore } from "rate-limit-redis";
 import { getRedis } from "../config/connectRedis.js";
 
-// Cache for limiters
-let limiterCache = {};
+// Limiters will be initialized after Redis connection
+let registerLimiter = null;
+let loginLimiter = null;
+let forgotPasswordLimiter = null;
+let resendVerificationLimiter = null;
 
 const createRateLimiter = ({ windowMs, max, message, prefix }) => {
   return rateLimit({
@@ -18,64 +21,43 @@ const createRateLimiter = ({ windowMs, max, message, prefix }) => {
       return `${ip}:${email}`;
     },
     store: new RedisStore({
-      sendCommand: (...args) => {
+      sendCommand: (...command) => {
         const redisClient = getRedis();
-        return redisClient.sendCommand(args);
+        return redisClient.call(...command);
       },
       prefix: `rate-limit:${prefix}:`,
     }),
   });
 };
 
-// Lazy initialization wrappers that create limiters on first use
-export const registerLimiter = (req, res, next) => {
-  if (!limiterCache.register) {
-    limiterCache.register = createRateLimiter({
-      windowMs: 60 * 60 * 1000, // 1 hour
-      max: 5,
-      message:
-        "Too many registration attempts from this IP/email, please try again after an hour",
-      prefix: "register",
-    });
-  }
-  limiterCache.register(req, res, next);
+// Initialize all limiters after Redis is connected
+export const initializeRateLimiters = () => {
+  registerLimiter = createRateLimiter({
+    windowMs: 60 * 60 * 1000, // 1 hour
+    max: 5,
+    message:
+      "Too many registration attempts from this IP/email, please try again after an hour",
+    prefix: "register",
+  });
+
+  loginLimiter = createRateLimiter({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 10,
+    message:
+      "Too many login attempts from this IP/email, please try again after 15 minutes",
+    prefix: "login",
+  });
+
+  forgotPasswordLimiter = createRateLimiter({
+    windowMs: 60 * 60 * 1000, // 1 hour
+    max: 5,
+    message:
+      "Too many password reset attempts from this IP/email, please try again after an hour",
+    prefix: "forgot-password",
+  });
 };
 
-export const loginLimiter = (req, res, next) => {
-  if (!limiterCache.login) {
-    limiterCache.login = createRateLimiter({
-      windowMs: 15 * 60 * 1000, // 15 minutes
-      max: 10,
-      message:
-        "Too many login attempts from this IP/email, please try again after 15 minutes",
-      prefix: "login",
-    });
-  }
-  limiterCache.login(req, res, next);
-};
-
-export const forgotPasswordLimiter = (req, res, next) => {
-  if (!limiterCache.forgotPassword) {
-    limiterCache.forgotPassword = createRateLimiter({
-      windowMs: 60 * 60 * 1000, // 1 hour
-      max: 5,
-      message:
-        "Too many password reset attempts from this IP/email, please try again after an hour",
-      prefix: "forgot-password",
-    });
-  }
-  limiterCache.forgotPassword(req, res, next);
-};
-
-export const resendVerificationLimiter = (req, res, next) => {
-  if (!limiterCache.resendVerification) {
-    limiterCache.resendVerification = createRateLimiter({
-      windowMs: 60 * 60 * 1000, // 1 hour
-      max: 5,
-      message:
-        "Too many verification email resend attempts from this IP/email, please try again after an hour",
-      prefix: "resend-verification",
-    });
-  }
-  limiterCache.resendVerification(req, res, next);
-};
+// Export wrapper functions
+export const getRegisterLimiter = () => registerLimiter;
+export const getLoginLimiter = () => loginLimiter;
+export const getForgotPasswordLimiter = () => forgotPasswordLimiter;

@@ -1,9 +1,17 @@
 import { Resend } from "resend";
+import logger from "./logger.js";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 export const sendForgotPasswordEmail = async (email, resendUrl) => {
   try {
+    if (!process.env.RESEND_API_KEY) {
+      throw new Error("RESEND_API_KEY is not set in environment variables");
+    }
+    if (!process.env.EMAIL_FROM) {
+      throw new Error("EMAIL_FROM is not set in environment variables");
+    }
+
     await resend.emails.send({
       from: process.env.EMAIL_FROM,
       to: email,
@@ -17,13 +25,23 @@ export const sendForgotPasswordEmail = async (email, resendUrl) => {
             `,
     });
   } catch (error) {
-    console.error("Error sending email:", error);
+    logger.error(
+      "Error sending forgot password email:",
+      error.message || error,
+    );
     throw new Error("Failed to send forgot password email");
   }
 };
 
 export const sendVerificationEmail = async (email, verificationUrl) => {
   try {
+    if (!process.env.RESEND_API_KEY) {
+      throw new Error("RESEND_API_KEY is not set in environment variables");
+    }
+    if (!process.env.EMAIL_FROM) {
+      throw new Error("EMAIL_FROM is not set in environment variables");
+    }
+
     await resend.emails.send({
       from: process.env.EMAIL_FROM,
       to: email,
@@ -37,7 +55,7 @@ export const sendVerificationEmail = async (email, verificationUrl) => {
             `,
     });
   } catch (error) {
-    console.error("Error sending email:", error);
+    logger.error("Error sending verification email:", error.message || error);
     throw new Error("Failed to send verification email");
   }
 };
