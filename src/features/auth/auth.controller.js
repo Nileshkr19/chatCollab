@@ -5,6 +5,10 @@ import {
   logoutService,
   logoutAllService,
   getMeService,
+  forgotPasswordService,
+  resetPasswordService,
+  verifyEmailService,
+  resendForgotPasswordEmailService,
 } from "./auth.service.js";
 
 import logger from "../../utils/logger.js";
@@ -21,16 +25,11 @@ const COOKIE_OPTIONS = {
 
 export const register = asyncHandler(async (req, res) => {
   try {
-    const { user, accessToken, refreshToken } = await registerService(req.body);
+    const user = await registerService(req.body);
 
-    res.cookie("refreshToken", refreshToken, COOKIE_OPTIONS);
-
-    return res.status(201).json(
-      new apiResponse(true, "User registered successfully", {
-          user,
-          accessToken,
-      }),
-    );
+    return res
+      .status(201)
+      .json(new apiResponse(true, "User registered successfully", { user }));
   } catch (err) {
     logger.error("Error occurred while registering user", err);
     throw new apiError(500, "Failed to register user");
@@ -45,8 +44,8 @@ export const login = asyncHandler(async (req, res) => {
 
     return res.status(200).json(
       new apiResponse(true, "User logged in successfully", {
-          user,
-          accessToken,
+        user,
+        accessToken,
       }),
     );
   } catch (err) {
@@ -124,5 +123,68 @@ export const getMe = asyncHandler(async (req, res) => {
   } catch (err) {
     logger.error("Error occurred while retrieving user details", err);
     throw new apiError(500, "Failed to retrieve user details");
+  }
+});
+
+export const forgotPassword = asyncHandler(async (req, res) => {
+  try {
+    const { email } = req.body;
+    const result = await forgotPasswordService(email);
+
+    return res
+      .status(200)
+      .json(
+        new apiResponse(true, "Password reset email sent successfully", result),
+      );
+  } catch (err) {
+    logger.error("Error occurred while sending password reset email", err);
+    throw new apiError(500, "Failed to send password reset email");
+  }
+});
+
+export const resetPassword = asyncHandler(async (req, res) => {
+  try {
+    const { token, email, password } = req.body;
+    const result = await resetPasswordService(token, email, password);
+
+    return res
+      .status(200)
+      .json(new apiResponse(true, "Password reset successfully", result));
+  } catch (err) {
+    logger.error("Error occurred while resetting password", err);
+    throw new apiError(500, "Failed to reset password");
+  }
+});
+
+export const verifyEmail = asyncHandler(async (req, res) => {
+  try {
+    const { token, email } = req.body;
+    const result = await verifyEmailService(token, email);
+
+    return res
+      .status(200)
+      .json(new apiResponse(true, "Email verified successfully", result));
+  } catch (err) {
+    logger.error("Error occurred while verifying email", err);
+    throw new apiError(500, "Failed to verify email");
+  }
+});
+
+export const resendForgotPasswordEmail = asyncHandler(async (req, res) => {
+  try {
+    const { email } = req.query;
+    const result = await resendForgotPasswordEmailService(email);
+    return res
+      .status(200)
+      .json(
+        new apiResponse(
+          true,
+          "Password reset email resent successfully",
+          result,
+        ),
+      );
+  } catch (err) {
+    logger.error("Error occurred while resending password reset email", err);
+    throw new apiError(500, "Failed to resend password reset email");
   }
 });

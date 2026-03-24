@@ -8,17 +8,25 @@ import logger from "./utils/logger.js";
 import mongoose from "mongoose";
 import { prisma } from "./config/connectPostgres.js";
 import { getRedis } from "./config/connectRedis.js";
+import { initializeRateLimiters } from "./middleware/rateLimitter.middleware.js";
 
 const PORT = process.env.PORT || 3003;
 let isShuttingDown = false;
 
 process.on("unhandledRejection", (reason, promise) => {
-  logger.error(`Unhandled Rejection at: ${promise} - reason: ${reason}`);
+  logger.error("Unhandled Rejection", {
+    promise: promise?.toString?.() ?? String(promise),
+    reason: reason instanceof Error ? reason.message : reason,
+    stack: reason instanceof Error ? reason.stack : undefined,
+  });
   process.exit(1);
 });
 
 process.on("uncaughtException", (error) => {
-  logger.error(`Uncaught Exception: ${error.message}`);
+  logger.error("Uncaught Exception", {
+    message: error.message,
+    stack: error.stack,
+  });
   process.exit(1);
 });
 
@@ -27,6 +35,11 @@ const startServer = async () => {
     await connectMongoDB();
     await connectPostgres();
     await connectRedis();
+    
+    // Initialize rate limiters after Redis is connected
+    initializeRateLimiters();
+    logger.info("Rate limiters initialized with Redis store");
+    
     const server = app.listen(PORT, () => {
       logger.info(`Server running on port ${PORT}`);
     });
