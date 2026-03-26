@@ -1,6 +1,7 @@
 import { verifyAccessToken } from "../../utils/jwt.js";
 import logger from "../../utils/logger.js";
 import apiError from "../../utils/apiError.js";
+import apiResponse from "../../utils/apiResponse.js";
 
 export const protect = (req, res, next) => {
   try {
@@ -21,8 +22,10 @@ export const protect = (req, res, next) => {
   } catch (err) {
     logger.error("Error occurred in auth middleware", err);
     if (err instanceof apiError) {
-      return res.status(err.status).json(apiResponse(false, err.message));
+      return res.status(err.status).json(new apiResponse(false, err.message));
     }
-    return res.status(500).json(apiResponse(false, "Internal server error"));
+    return res
+      .status(500)
+      .json(new apiResponse(false, "Internal server error"));
   }
 };
