@@ -89,8 +89,11 @@ export const registerService = async ({
   const verificationUrl = `${getVerificationBaseUrl()}?token=${verificationToken}&email=${encodeURIComponent(email)}`;
 
   try {
-    await sendVerificationEmail(email, verificationUrl);
-    logger.info(`Verification email sent to: ${email}`);
+    if (process.env.NODE_ENV === "development") {
+      console.log("Verification URL:", verificationUrl);
+    } else {
+      await sendVerificationEmail(email, verificationUrl);
+    }
   } catch (emailError) {
     await getRedis().del(`pending:user:${hashedVerificationToken}`);
     logger.error(`Failed to send verification email to ${email}:`, emailError);

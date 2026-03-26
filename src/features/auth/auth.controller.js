@@ -29,7 +29,7 @@ export const register = asyncHandler(async (req, res) => {
 
     return res
       .status(201)
-      .json(new apiResponse(true, "User registered successfully", { user }));
+      .json(new apiResponse(201, "User registered successfully", { user }));
   } catch (err) {
     logger.error("Error occurred while registering user", err);
     throw new apiError(500, "Failed to register user");
@@ -43,7 +43,7 @@ export const login = asyncHandler(async (req, res) => {
     res.cookie("refreshToken", refreshToken, COOKIE_OPTIONS);
 
     return res.status(200).json(
-      new apiResponse(true, "User logged in successfully", {
+      new apiResponse(200, "User logged in successfully", {
         user,
         accessToken,
       }),
@@ -67,7 +67,7 @@ export const refreshToken = asyncHandler(async (req, res) => {
     res.cookie("refreshToken", newRefreshToken, COOKIE_OPTIONS);
 
     return res.status(200).json(
-      new apiResponse(true, "Token refreshed successfully", {
+      new apiResponse(200, "Token refreshed successfully", {
         accessToken,
       }),
     );
@@ -90,7 +90,7 @@ export const logout = asyncHandler(async (req, res) => {
 
     return res
       .status(200)
-      .json(new apiResponse(true, "Logged out successfully"));
+      .json(new apiResponse(200, "Logged out successfully"));
   } catch (err) {
     logger.error("Error occurred while logging out user", err);
     throw new apiError(500, "Failed to log out user");
@@ -118,7 +118,7 @@ export const getMe = asyncHandler(async (req, res) => {
     return res
       .status(200)
       .json(
-        new apiResponse(true, "User details retrieved successfully", { user }),
+        new apiResponse(200, "User details retrieved successfully", { user }),
       );
   } catch (err) {
     logger.error("Error occurred while retrieving user details", err);
@@ -134,7 +134,7 @@ export const forgotPassword = asyncHandler(async (req, res) => {
     return res
       .status(200)
       .json(
-        new apiResponse(true, "Password reset email sent successfully", result),
+        new apiResponse(200, "Password reset email sent successfully", result),
       );
   } catch (err) {
     logger.error("Error occurred while sending password reset email", err);
@@ -145,11 +145,11 @@ export const forgotPassword = asyncHandler(async (req, res) => {
 export const resetPassword = asyncHandler(async (req, res) => {
   try {
     const { token, email, password } = req.body;
-    const result = await resetPasswordService({token, email, password});
+    const result = await resetPasswordService({ token, email, password });
 
     return res
       .status(200)
-      .json(new apiResponse(true, "Password reset successfully", result));
+      .json(new apiResponse(200, "Password reset successfully", result));
   } catch (err) {
     logger.error("Error occurred while resetting password", err);
     throw new apiError(500, "Failed to reset password");
@@ -163,7 +163,7 @@ export const verifyEmail = asyncHandler(async (req, res) => {
 
     return res
       .status(200)
-      .json(new apiResponse(true, "Email verified successfully", result));
+      .json(new apiResponse(200, "Email verified successfully", result));
   } catch (err) {
     logger.error("Error occurred while verifying email", err);
     throw new apiError(500, "Failed to verify email");
@@ -178,7 +178,7 @@ export const resendForgotPasswordEmail = asyncHandler(async (req, res) => {
       .status(200)
       .json(
         new apiResponse(
-          true,
+          200,
           "Password reset email resent successfully",
           result,
         ),
