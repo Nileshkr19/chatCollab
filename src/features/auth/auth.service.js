@@ -86,7 +86,7 @@ export const registerService = async ({
     VERIFICATION_TOKEN_TTL_MS / 1000,
   );
 
-  const verificationUrl = `${getVerificationBaseUrl()}?token=${verificationToken}&email=${encodeURIComponent(user.email)}`;
+  const verificationUrl = `${getVerificationBaseUrl()}?token=${verificationToken}&email=${encodeURIComponent(email)}`;
 
   try {
     await sendVerificationEmail(email, verificationUrl);
@@ -295,7 +295,7 @@ export const forgotPasswordService = async (email) => {
   const hashedToken = hashResetToken(resetToken);
 
   // store in Redis instead of PostgreSQL
-  await redis.set(
+  await getRedis().set(
     `reset:${hashedToken}`,
     user.id,
     "EX",
@@ -317,7 +317,7 @@ export const resetPasswordService = async ({ token, email, password }) => {
   const hashedToken = hashResetToken(token);
 
   // check Redis instead of PostgreSQL
-  const userId = await redis.get(`reset:${hashedToken}`);
+  const userId = await getRedis().get(`reset:${hashedToken}`);
   if (!userId) {
     throw new apiError(400, "Invalid or expired reset token");
   }
@@ -349,7 +349,7 @@ export const resetPasswordService = async ({ token, email, password }) => {
   });
 
   // delete token from Redis — one time use
-  await redis.del(`reset:${hashedToken}`);
+  await getRedis().del(`reset:${hashedToken}`);
 
   // logout all devices
   await deleteAllRefreshTokens(user.id);

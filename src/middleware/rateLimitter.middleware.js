@@ -9,6 +9,11 @@ let forgotPasswordLimiter = null;
 let resendVerificationLimiter = null;
 
 const createRateLimiter = ({ windowMs, max, message, prefix }) => {
+  // Bypass rate limiting in development
+  if (process.env.NODE_ENV === "development") {
+    return (req, res, next) => next();
+  }
+
   return rateLimit({
     windowMs,
     max,
