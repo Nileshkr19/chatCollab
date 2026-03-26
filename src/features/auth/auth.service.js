@@ -19,6 +19,7 @@ import {
 } from "../../utils/sendEmail.js";
 
 import { getRedis } from "../../config/connectRedis.js";
+import apiError from "../../utils/apiError.js";
 
 const hashResetToken = (token) => {
   return crypto.createHash("sha256").update(token).digest("hex");
@@ -64,9 +65,7 @@ export const registerService = async ({
     const field = existingUser.email === email ? "email" : "username";
     const message =
       field === "email" ? "Email already in use" : "Username already taken";
-    const error = new Error(message);
-    error.status = 409;
-    throw error;
+    throw new apiError(409, message);
   }
 
   const hashedPassword = await hashPassword(password);
@@ -95,11 +94,10 @@ export const registerService = async ({
   } catch (emailError) {
     await getRedis().del(`pending:user:${hashedVerificationToken}`);
     logger.error(`Failed to send verification email to ${email}:`, emailError);
-    const error = new Error(
+    throw new apiError(
+      500,
       "Failed to send verification email. Please try again later.",
     );
-    error.status = 500;
-    throw error;
   }
 
   logger.info(`User registration initiated: ${email} (Username: ${username})`);
@@ -118,33 +116,28 @@ export const loginService = async ({ email, password }) => {
     ? await verifyPassword(password, user.password)
     : false;
   if (!user || !isPasswordValid) {
-    const error = new Error("Invalid email or password");
-    error.status = 401;
-    throw error;
+    throw new apiError(401, "Invalid email or password");
   }
 
   if (user.status === "BANNED") {
-    const error = new Error(
+    throw new apiError(
+      403,
       "Your account has been banned. Please contact support for more information.",
     );
-    error.status = 403;
-    throw error;
   }
 
   if (user.deleted_at) {
-    const error = new Error(
+    throw new apiError(
+      403,
       "This account has been deactivated. Please contact support for more information.",
     );
-    error.status = 403;
-    throw error;
   }
 
   if (!user.is_verified) {
-    const error = new Error(
+    throw new apiError(
+      403,
       "Email not verified. Please check your inbox for the verification email.",
     );
-    error.status = 403;
-    throw error;
   }
 
   await prisma.user.update({
@@ -178,22 +171,16 @@ export const loginService = async ({ email, password }) => {
 
 export const refreshTokenService = async (inComingRefreshToken) => {
   if (!inComingRefreshToken) {
-    const error = new Error("Refresh token is required");
-    error.status = 400;
-    throw error;
+    throw new apiError(400, "Refresh token is required");
   }
   const decoded = verifyRefreshToken(inComingRefreshToken);
   if (!decoded) {
-    const error = new Error("Invalid refresh token");
-    error.status = 401;
-    throw error;
+    throw new apiError(401, "Invalid refresh token");
   }
   const { userId, tokenId } = decoded;
   const storedToken = await getRefreshToken(userId, tokenId);
   if (!storedToken || storedToken !== inComingRefreshToken) {
-    const error = new Error("Invalid refresh token");
-    error.status = 401;
-    throw error;
+    throw new apiError(401, "Invalid refresh token");
   }
 
   const user = await prisma.user.findUnique({
@@ -208,9 +195,7 @@ export const refreshTokenService = async (inComingRefreshToken) => {
   });
 
   if (!user || user.status === "BANNED" || user.deleted_at) {
-    const error = new Error("User account is not active");
-    error.status = 403;
-    throw error;
+    throw new apiError(403, "User account is not active");
   }
 
   await deleteRefreshToken(userId, tokenId);
@@ -235,17 +220,12 @@ export const refreshTokenService = async (inComingRefreshToken) => {
 
 export const logoutService = async (inComingRefreshToken) => {
   if (!inComingRefreshToken) {
-    const error = new Error("Refresh token is required");
-    error.status = 400;
-    throw error;
+    throw new apiError(400, "Refresh token is required");
   }
 
   const decoded = verifyRefreshToken(inComingRefreshToken);
   if (!decoded) {
-    const error = new Error("Invalid refresh token");
-    error.status = 401;
-    throw error;
-    return;
+    throw new apiError(401, "Invalid refresh token");
   }
 
   const { userId, tokenId } = decoded;
@@ -278,9 +258,7 @@ export const getMeService = async (userId) => {
   });
 
   if (!user) {
-    const error = new Error("User not found");
-    error.status = 404;
-    throw error;
+    throw new apiError(404, "User not found");
   }
 
   return user;
@@ -307,11 +285,10 @@ export const forgotPasswordService = async (email) => {
   }
 
   if (user.provider !== "LOCAL") {
-    const error = new Error(
+    throw new apiError(
+      400,
       "Password reset is only available for local accounts",
     );
-    error.statusCode = 400;
-    throw error;
   }
 
   const resetToken = crypto.randomBytes(32).toString("hex");
@@ -342,9 +319,7 @@ export const resetPasswordService = async ({ token, email, password }) => {
   // check Redis instead of PostgreSQL
   const userId = await redis.get(`reset:${hashedToken}`);
   if (!userId) {
-    const error = new Error("Invalid or expired reset token");
-    error.statusCode = 400;
-    throw error;
+    throw new apiError(400, "Invalid or expired reset token");
   }
 
   // verify user still exists and is valid
@@ -363,9 +338,7 @@ export const resetPasswordService = async ({ token, email, password }) => {
   });
 
   if (!user) {
-    const error = new Error("Invalid or expired reset token");
-    error.statusCode = 400;
-    throw error;
+    throw new apiError(400, "Invalid or expired reset token");
   }
 
   const hashedPassword = await hashPassword(password);
@@ -393,19 +366,16 @@ export const verifyEmailService = async (token, email) => {
 
   const pendingUserData = await getRedis().get(`pending:user:${hashedToken}`);
   if (!pendingUserData) {
-    const error = new Error("Invalid or expired verification token");
-    error.statusCode = 400;
-    throw error;
+    throw new apiError(400, "Invalid or expired verification token");
   }
 
   const pendingUser = JSON.parse(pendingUserData);
 
   if (pendingUser.email !== email) {
-    const error = new Error(
+    throw new apiError(
+      400,
       "Invalid verification token for the provided email",
     );
-    error.statusCode = 400;
-    throw error;
   }
 
   const user = await prisma.user.create({
