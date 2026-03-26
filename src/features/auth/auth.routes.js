@@ -11,7 +11,7 @@ import {
   verifyEmail,
   resendForgotPasswordEmail,
 } from "./auth.controller.js";
-import { protect } from "../../middleware/auth.middleware.js";
+import { protect } from "../auth/auth.middleware.js";
 import validate from "../../middleware/validate.middleware.js";
 import {
   registerSchema,
