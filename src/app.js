@@ -4,7 +4,9 @@ import morgan from "morgan";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import logger from "./utils/logger.js";
+import { protect } from "./features/auth/auth.middleware.js";
 import authRoutes from "./features/auth/auth.routes.js";
+import workspaceRoutes from "./features/workspace/workspace.routes.js";
 
 const app = express();
 
@@ -26,7 +28,7 @@ app.use(express.json());
 app.use(cookieParser());
 
 app.use("/api/auth", authRoutes);
-
+app.use("/api/workspaces", protect, workspaceRoutes);
 app.get("/health", (req, res) => {
   res.status(200).json({ status: "ok" });
 });
