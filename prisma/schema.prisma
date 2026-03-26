@@ -33,4 +33,45 @@ model User {
   created_at  DateTime     @default(now())
   updated_at  DateTime     @updatedAt
   deleted_at  DateTime?
+
+  ownedWorkspaces Workspace[] @relation("OwnedWorkspaces")
+  workspaceMembers WorkspaceMember[]
+}
+
+enum WorkspaceRole {
+  OWNER
+  MANAGER
+  MEMBER
+  GUEST
+}
+
+model Workspace {
+  id String @id @default(uuid())
+  name String
+  slug String @unique
+  logo_url String?
+  owner_id String
+  owner User @relation("OwnedWorkspaces", fields:[owner_id], references: [id])
+  members WorkspaceMember[]
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  deleted_at DateTime?
+
+  @@index([owner_id])
+}
+
+model WorkspaceMember {
+  id String @id @default (uuid())
+  workspace_id String
+  workspace Workspace @relation(fields: [workspace_id], references: [id])
+  user_id String
+  user User @relation(fields: [user_id], references: [id])
+  role WorkspaceRole @default(MEMBER)
+  joined_at DateTime @default(now())
+  invited_by String?
+  is_active Boolean @default(true)
+
+  @@unique([workspace_id, user_id])
+  @@index([workspace_id])
+  @@index([user_id])
 }
