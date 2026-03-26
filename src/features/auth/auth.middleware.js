@@ -22,10 +22,12 @@ export const protect = (req, res, next) => {
   } catch (err) {
     logger.error("Error occurred in auth middleware", err);
     if (err instanceof apiError) {
-      return res.status(err.status).json(new apiResponse(false, err.message));
+      return res
+        .status(err.statusCode)
+        .json(new apiResponse(err.statusCode, err.message));
     }
     return res
       .status(500)
-      .json(new apiResponse(false, "Internal server error"));
+      .json(new apiResponse(500, "Internal server error"));
   }
 };
