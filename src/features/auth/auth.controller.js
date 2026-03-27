@@ -20,6 +20,7 @@ const COOKIE_OPTIONS = {
   httpOnly: true,
   secure: process.env.NODE_ENV === "production",
   sameSite: "strict",
+  path: "/api/auth/refresh-token",
   maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
 };
 
@@ -32,7 +33,9 @@ export const register = asyncHandler(async (req, res) => {
       .json(new apiResponse(201, "User registered successfully", { user }));
   } catch (err) {
     logger.error("Error occurred while registering user", err);
-    throw new apiError(500, "Failed to register user");
+    throw err instanceof apiError
+      ? err
+      : new apiError(500, "Failed to register user");
   }
 });
 
@@ -50,7 +53,9 @@ export const login = asyncHandler(async (req, res) => {
     );
   } catch (err) {
     logger.error("Error occurred while logging in user", err);
-    throw new apiError(500, "Failed to log in user");
+    throw err instanceof apiError
+      ? err
+      : new apiError(500, "Failed to log in user");
   }
 });
 
@@ -73,7 +78,9 @@ export const refreshToken = asyncHandler(async (req, res) => {
     );
   } catch (err) {
     logger.error("Error occurred while refreshing token", err);
-    throw new apiError(500, "Failed to refresh token");
+    throw err instanceof apiError
+      ? err
+      : new apiError(500, "Failed to refresh token");
   }
 });
 
@@ -93,7 +100,9 @@ export const logout = asyncHandler(async (req, res) => {
       .json(new apiResponse(200, "Logged out successfully"));
   } catch (err) {
     logger.error("Error occurred while logging out user", err);
-    throw new apiError(500, "Failed to log out user");
+    throw err instanceof apiError
+      ? err
+      : new apiError(500, "Failed to log out user");
   }
 });
 
@@ -108,7 +117,9 @@ export const logoutAll = asyncHandler(async (req, res) => {
       .json(new apiResponse(true, "Logged out from all devices successfully"));
   } catch (err) {
     logger.error("Error occurred while logging out user from all devices", err);
-    throw new apiError(500, "Failed to log out user from all devices");
+    throw err instanceof apiError
+      ? err
+      : new apiError(500, "Failed to log out user from all devices");
   }
 });
 
@@ -122,7 +133,9 @@ export const getMe = asyncHandler(async (req, res) => {
       );
   } catch (err) {
     logger.error("Error occurred while retrieving user details", err);
-    throw new apiError(500, "Failed to retrieve user details");
+    throw err instanceof apiError
+      ? err
+      : new apiError(500, "Failed to retrieve user details");
   }
 });
 
@@ -138,7 +151,9 @@ export const forgotPassword = asyncHandler(async (req, res) => {
       );
   } catch (err) {
     logger.error("Error occurred while sending password reset email", err);
-    throw new apiError(500, "Failed to send password reset email");
+    throw err instanceof apiError
+      ? err
+      : new apiError(500, "Failed to send password reset email");
   }
 });
 
@@ -152,7 +167,9 @@ export const resetPassword = asyncHandler(async (req, res) => {
       .json(new apiResponse(200, "Password reset successfully", result));
   } catch (err) {
     logger.error("Error occurred while resetting password", err);
-    throw new apiError(500, "Failed to reset password");
+    throw err instanceof apiError
+      ? err
+      : new apiError(500, "Failed to reset password");
   }
 });
 
@@ -166,7 +183,9 @@ export const verifyEmail = asyncHandler(async (req, res) => {
       .json(new apiResponse(200, "Email verified successfully", result));
   } catch (err) {
     logger.error("Error occurred while verifying email", err);
-    throw new apiError(500, "Failed to verify email");
+    throw err instanceof apiError
+      ? err
+      : new apiError(500, "Failed to verify email");
   }
 });
 
@@ -185,6 +204,8 @@ export const resendForgotPasswordEmail = asyncHandler(async (req, res) => {
       );
   } catch (err) {
     logger.error("Error occurred while resending password reset email", err);
-    throw new apiError(500, "Failed to resend password reset email");
+    throw err instanceof apiError
+      ? err
+      : new apiError(500, "Failed to resend password reset email");
   }
 });
