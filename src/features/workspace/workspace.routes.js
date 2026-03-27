@@ -22,8 +22,12 @@ import {
   transferOwnershipSchema,
 } from "./workspace.validation.js";
 import validate from "../../middleware/validate.middleware.js";
+import { getWorkspaceRateLimiter } from "../../middleware/rateLimitter.middleware.js";
 
 const router = Router();
+
+// Apply workspace rate limiter to all workspace routes
+router.use(getWorkspaceRateLimiter());
 
 router.post("/", validate(createWorkspaceSchema), createWorkspace);
 router.get("/", getUserWorkspaces);
