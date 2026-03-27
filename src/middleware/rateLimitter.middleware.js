@@ -6,7 +6,7 @@ import { getRedis } from "../config/connectRedis.js";
 let registerLimiter = null;
 let loginLimiter = null;
 let forgotPasswordLimiter = null;
-let resendVerificationLimiter = null;
+let workspaceRateLimiter = null;
 
 const createRateLimiter = ({ windowMs, max, message, prefix }) => {
   // Bypass rate limiting in development
@@ -60,9 +60,18 @@ export const initializeRateLimiters = () => {
       "Too many password reset attempts from this IP/email, please try again after an hour",
     prefix: "forgot-password",
   });
+
+  workspaceRateLimiter = createRateLimiter({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100,
+    message:
+      "Too many requests from this IP/email, please try again after an hour",
+    prefix: "workspace",
+  })
 };
 
 // Export wrapper functions
 export const getRegisterLimiter = () => registerLimiter;
 export const getLoginLimiter = () => loginLimiter;
 export const getForgotPasswordLimiter = () => forgotPasswordLimiter;
+export const getWorkspaceRateLimiter = () => workspaceRateLimiter;
