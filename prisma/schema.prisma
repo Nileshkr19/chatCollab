@@ -36,6 +36,8 @@ model User {
 
   ownedWorkspaces Workspace[] @relation("OwnedWorkspaces")
   workspaceMembers WorkspaceMember[]
+  notifications Notification[]
+  notificationPreferences NotificationPreference?
 }
 
 enum WorkspaceRole {
@@ -74,4 +76,42 @@ model WorkspaceMember {
   @@unique([workspace_id, user_id])
   @@index([workspace_id])
   @@index([user_id])
+}
+
+model Notification {  
+  id String @id @default(uuid())
+  userId String @db.uuid()
+  type String
+  title String
+  content String?
+  isRead Boolean @default(false)
+  readAt DateTime?
+  createdAt DateTime @default(now())
+  expireAt DateTime @default(dbgenerated("CURRENT_TIMESTAMP + INTERVAL '7 days'"))
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, isRead, createdAt(sort: Desc)])
+  @@index([expireAt])
+}
+
+model NotificationPreference {
+  id String @id @default(uuid())
+  userId String @db.uuid()
+
+  emailTaskAssigned Boolean @default(true)
+  emailTaskUpdated Boolean @default(true)
+  emailMessageMention Boolean @default(true)
+
+  pushTaskAssigned Boolean @default(true)
+  pushMessageMention Boolean @default(true)
+
+  quietHoursEnabled Boolean @default(false)
+  quietHoursStart Int? // 0-23
+  quietHoursEnd Int?   // 0-23
+
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
 }
