@@ -37,7 +37,7 @@ export const createWorkspaceService = async (userId, { name, logo_url }) => {
         owner_id: userId,
       },
     });
-    await tx.WorkspaceMember.create({
+    await tx.workspaceMember.create({
       data: {
         workspace_id: ws.id,
         user_id: userId,
