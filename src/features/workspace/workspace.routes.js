@@ -27,7 +27,10 @@ import { getWorkspaceRateLimiter } from "../../middleware/rateLimitter.middlewar
 const router = Router();
 
 // Apply workspace rate limiter to all workspace routes
-router.use(getWorkspaceRateLimiter);
+const workspaceRateLimiterMiddleware = (req, res, next) =>
+  getWorkspaceRateLimiter()(req, res, next);
+
+router.use(workspaceRateLimiterMiddleware);
 
 router.post("/", validate(createWorkspaceSchema), createWorkspace);
 router.get("/", getUserWorkspaces);
