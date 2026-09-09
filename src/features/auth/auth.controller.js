@@ -30,7 +30,7 @@ export const register = asyncHandler(async (req, res) => {
 
     return res
       .status(201)
-      .json(new apiResponse(201, "User registered successfully", { user }));
+      .json(new apiResponse(201,{ user }, "User registered successfully"));
   } catch (err) {
     logger.error("Error occurred while registering user", err);
     throw err instanceof apiError
