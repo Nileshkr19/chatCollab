@@ -32,17 +32,18 @@ process.on("uncaughtException", (error) => {
 
 const startServer = async () => {
   try {
-    await connectMongoDB();
-    await connectPostgres();
-    await connectRedis();
-    
+    await Promise.all([connectMongoDB(), connectPostgres(), connectRedis()]);
+
     // Initialize rate limiters after Redis is connected
     initializeRateLimiters();
     logger.info("Rate limiters initialized with Redis store");
-    
+
     const server = app.listen(PORT, () => {
       logger.info(`Server running on port ${PORT}`);
     });
+
+    // time taken to start server
+    logger.info(`Server started in ${process.uptime().toFixed(2)} seconds`);
     const redisClient = getRedis();
     const shutdown = async (signal) => {
       if (isShuttingDown) return;
