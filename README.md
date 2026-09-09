@@ -1,12 +1,21 @@
-# Collabify
+# Collabify - Server
 
 A full-stack real-time chat and project collaboration platform. Teams can communicate through channels and direct messages, while managers can assign tasks, track progress, and manage deadlines — all in one place.
+
+**📚 Documentation Navigation:**
+
+- 🏗️ [System Architecture](./ARCHITECTURE.md) — Complete system design, data flow, and technical decisions
+- 👤 [Authentication](./src/features/auth/README.md) — User registration, login, sessions
+- 💬 [Chat](./src/features/chat/README.md) — Real-time messaging, channels, reactions
+- 👥 [Workspace](./src/features/workspace/README.md) — Team management, roles, invitations
+- 📋 [Tasks](./src/features/tasks/README.md) — Task management, Kanban board, deadlines
+- 🔔 [Notifications](./src/features/notification/README.md) — Alerts, preferences, email delivery
 
 ---
 
 ## Features
 
-### Chat
+### 💬 [Chat](./src/features/chat/README.md)
 
 - Real-time messaging with Socket.IO
 - Group channels and direct messages
@@ -14,8 +23,9 @@ A full-stack real-time chat and project collaboration platform. Teams can commun
 - File and media sharing
 - Read receipts and typing indicators
 - Message search and pinning
+- User presence tracking (Redis)
 
-### Collaboration
+### 📋 [Tasks](./src/features/tasks/README.md)
 
 - Assign tasks to team members with deadlines
 - Kanban board with drag-and-drop
@@ -24,13 +34,28 @@ A full-stack real-time chat and project collaboration platform. Teams can commun
 - Deadline reminders and overdue alerts
 - Activity log and audit trail
 
-### General
+### 👤 [Authentication](./src/features/auth/README.md)
 
 - JWT authentication with secure password hashing
+- User registration and email verification
+- Session management with Redis
+- Password reset via email
+- Token refresh mechanism
+
+### 👥 [Workspace](./src/features/workspace/README.md)
+
 - Workspace-based multi-team support
 - Role-based access control (Owner → Manager → Member → Guest)
 - Email invitations with role pre-assignment
-- Daily digest notifications
+- Member management and activity tracking
+
+### 🔔 [Notifications](./src/features/notification/README.md)
+
+- In-app notifications with Socket.IO
+- Email digests and transactional emails
+- Notification preferences & quiet hours
+- Delivery tracking and retry logic
+- Daily digest and real-time alerts
 
 ---
 
@@ -71,42 +96,103 @@ A full-stack real-time chat and project collaboration platform. Teams can commun
 ## Project Structure
 
 ```
-collabify/
-├── client/                   # React frontend
-│   ├── src/
-│   │   ├── components/
-│   │   │   ├── chat/
-│   │   │   ├── tasks/
-│   │   │   └── dashboard/
-│   │   ├── store/            # Zustand stores
-│   │   ├── hooks/            # useSocket, useAuth, useTasks
-│   │   └── pages/
-│   └── package.json
+server/
+├── ARCHITECTURE.md            # 🏗️ Complete system design & data flow
 │
-└── server/                   # Node.js backend
-    ├── prisma/
-    │   └── schema.prisma     # PostgreSQL schema
-    ├── src/
-    │   ├── app.js            # Express app setup
-    │   ├── config/
-    │   │   ├── connectMongoDB.js
-    │   │   ├── connectPostgres.js
-    │   ├── features/
-    │   │   ├── auth/
-    │   │   ├── chat/
-    │   │   ├── notification/
-    │   │   ├── tasks/
-    │   │   └── workspace/
-    │   ├── models/           # Mongoose models (MongoDB)
-    │   ├── routes/           # Express REST endpoints
-    │   ├── socket/           # Socket.IO event handlers
-    │   ├── middleware/       # Auth, error handling
-    │   ├── jobs/             # Bull background jobs
-    │   ├── utils/
-    │   │   └── logger.js
-    │   └── server.js
-    └── package.json
+├── src/
+│   ├── app.js                 # Express app initialization
+│   ├── server.js              # Server entry point
+│   │
+│   ├── config/
+│   │   ├── connectMongoDB.js  # MongoDB connection
+│   │   ├── connectPostgres.js # PostgreSQL (Neon) connection
+│   │   └── connectRedis.js    # Redis connection & client
+│   │
+│   ├── features/              # Feature modules (see docs below)
+│   │   │
+│   │   ├── auth/              # 👤 Authentication & Sessions
+│   │   │   ├── README.md      # ← Feature Documentation
+│   │   │   ├── auth.controller.js
+│   │   │   ├── auth.service.js
+│   │   │   ├── auth.routes.js
+│   │   │   ├── auth.middleware.js
+│   │   │   └── auth.validation.js
+│   │   │
+│   │   ├── chat/              # 💬 Real-time Chat
+│   │   │   ├── README.md      # ← Feature Documentation
+│   │   │   ├── chat.service.js
+│   │   │   ├── models/        # MongoDB models
+│   │   │   │   ├── channel.models.js
+│   │   │   │   ├── message.models.js
+│   │   │   │   ├── reaction.models.js
+│   │   │   │   └── readReceipts.models.js
+│   │   │   └── services/
+│   │   │       └── presence.service.js  # Redis-based user presence
+│   │   │
+│   │   ├── workspace/         # 👥 Team Management
+│   │   │   ├── README.md      # ← Feature Documentation
+│   │   │   ├── workspace.controller.js
+│   │   │   ├── workspace.service.js
+│   │   │   ├── workspace.routes.js
+│   │   │   └── workspace.middleware.js
+│   │   │
+│   │   ├── tasks/             # 📋 Task Management
+│   │   │   ├── README.md      # ← Feature Documentation
+│   │   │   ├── task.controller.js
+│   │   │   ├── task.service.js
+│   │   │   ├── task.routes.js
+│   │   │   └── task.middleware.js
+│   │   │
+│   │   └── notification/      # 🔔 Notifications
+│   │       ├── README.md      # ← Feature Documentation
+│   │       ├── notification.controller.js
+│   │       ├── notification.service.js
+│   │       ├── notification.routes.js
+│   │       └── notification.middleware.js
+│   │
+│   ├── socket/                # WebSocket event handlers
+│   │   └── (Socket.IO integration)
+│   │
+│   ├── middleware/            # Express middleware
+│   │   ├── rateLimitter.middleware.js
+│   │   └── validate.middleware.js
+│   │
+│   ├── jobs/                  # Bull background jobs
+│   │   └── (Scheduled tasks)
+│   │
+│   └── utils/                 # Shared utilities
+│       ├── logger.js          # Winston logger with Morgan
+│       ├── apiError.js        # Standardized error handling
+│       ├── asyncHandler.js    # Express error wrapper
+│       ├── jwt.js             # Token generation/verification
+│       ├── password.js        # Password hashing/verification
+│       ├── tokens.js          # Token utilities
+│       ├── sendEmail.js       # Email delivery
+│       └── apiResponse.js     # Standardized API responses
+│
+├── prisma/
+│   ├── schema.prisma          # PostgreSQL schema (Neon)
+│   ├── migrations/            # Database migration history
+│   └── [generated files]
+│
+├── .env.example               # Environment variables template
+├── package.json               # Dependencies & scripts
+└── README.md                  # This file
 ```
+
+### Quick Navigation to Feature Docs
+
+Each feature module has its own comprehensive README:
+
+| Feature          | Documentation                                                   | Purpose                                |
+| ---------------- | --------------------------------------------------------------- | -------------------------------------- |
+| 👤 Auth          | [auth/README.md](./src/features/auth/README.md)                 | Registration, login, sessions, JWT     |
+| 💬 Chat          | [chat/README.md](./src/features/chat/README.md)                 | Messaging, channels, real-time updates |
+| 👥 Workspace     | [workspace/README.md](./src/features/workspace/README.md)       | Team management, roles, members        |
+| 📋 Tasks         | [tasks/README.md](./src/features/tasks/README.md)               | Task CRUD, assignments, Kanban board   |
+| 🔔 Notifications | [notification/README.md](./src/features/notification/README.md) | Alerts, preferences, delivery          |
+
+**→ [View System Architecture](./ARCHITECTURE.md)** for complete data flow, database design, and scalability patterns.
 
 ---
 
@@ -175,6 +261,50 @@ npm run dev
 ```
 
 Client runs at `http://localhost:5173`.
+
+---
+
+## 📚 Documentation Guide
+
+### For Different Audiences
+
+**I want to...**
+
+- **Understand the overall system** → Read [ARCHITECTURE.md](./ARCHITECTURE.md)
+- **Learn about a specific feature** → Click the feature link below:
+  - [👤 Authentication](./src/features/auth/README.md)
+  - [💬 Chat](./src/features/chat/README.md)
+  - [👥 Workspace](./src/features/workspace/README.md)
+  - [📋 Tasks](./src/features/tasks/README.md)
+  - [🔔 Notifications](./src/features/notification/README.md)
+- **Understand data flow** → See [ARCHITECTURE.md - Data Flow](./ARCHITECTURE.md#data-flow) section
+- **Set up the project** → Continue reading below (Getting Started)
+- **Find API endpoints** → See [ARCHITECTURE.md - API Overview](./ARCHITECTURE.md#api-overview) or feature docs
+
+### Documentation Structure
+
+```
+README.md (you are here)
+  └── Quick start & project overview
+
+ARCHITECTURE.md
+  └── System design & technical decisions
+      ├── High-level architecture
+      ├── Data flow examples
+      ├── Database schema
+      ├── Real-time communication
+      └── Scalability patterns
+
+src/features/[feature]/README.md
+  └── Feature-specific documentation
+      ├── Quick start examples
+      ├── Core services & methods
+      ├── API endpoints
+      ├── Socket.IO events
+      ├── Error handling
+      ├── Performance tips
+      └── Testing examples
+```
 
 ---
 
