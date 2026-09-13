@@ -1,32 +1,12 @@
-import { prisma } from "../../config/connectPostgres.js";
 import apiError from "../../utils/apiError.js";
 import asyncHandler from "../../utils/asyncHandler.js";
-
-// Helper function to get membership details
-const getMembership = async (workspaceId, userId) => {
-  return await prisma.workspaceMember.findUnique({
-    where: {
-      workspace_id_user_id: {
-        workspace_id: workspaceId,
-        user_id: userId,
-      },
-    },
-    include: {
-      workspace: {
-        select: {
-          id: true,
-          deleted_at: true,
-        },
-      },
-    },
-  });
-};
+import { getWorkspaceMembership } from "./workspace-access.service.js";
 
 export const isMember = asyncHandler(async (req, res, next) => {
   const { workspaceId } = req.params;
   const userId = req.user.userId;
 
-  const membership = await getMembership(workspaceId, userId);
+  const membership = await getWorkspaceMembership(workspaceId, userId);
   if (!membership || !membership.is_active) {
     throw new apiError(403, "Access denied: Not a member of this workspace");
   }
@@ -43,7 +23,7 @@ export const isManager = asyncHandler(async (req, res, next) => {
   const { workspaceId } = req.params;
   const userId = req.user.userId;
 
-  const membership = await getMembership(workspaceId, userId);
+  const membership = await getWorkspaceMembership(workspaceId, userId);
   if (!membership || !membership.is_active) {
     throw new apiError(403, "Access denied: Not a member of this workspace");
   }
@@ -69,7 +49,7 @@ export const isOwner = asyncHandler(async (req, res, next) => {
   const { workspaceId } = req.params;
   const userId = req.user.userId;
 
-  const membership = await getMembership(workspaceId, userId);
+  const membership = await getWorkspaceMembership(workspaceId, userId);
   if (!membership || !membership.is_active) {
     throw new apiError(403, "Access denied: Not a member of this workspace");
   }
