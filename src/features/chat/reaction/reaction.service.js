@@ -5,6 +5,12 @@ import logger from "@utils/logger";
 import { getUsersByIds } from "../../auth/user-access.service.js";
 
 export const addReactionService = async (messageId, userId, emoji) => {
+  const users = await getUsersByIds([userId]);
+  if (users.length === 0) {
+    logger.warn(`User ${userId} not found while adding a reaction`);
+    throw new Error("User not found");
+  }
+
   const message = await Message.findById(messageId);
   if (!message || message.isDeleted) {
     logger.error(`Message with ID ${messageId} not found or has been deleted`);
@@ -112,6 +118,14 @@ export const getReactionsByEmojiService = async (messageId, emoji) => {
   const userIds = reactions.map((reaction) => reaction.userId);
 
   const user = await getUsersByIds(userIds);
+
+  if (user.length === 0) {
+    logger.warn(
+      `No users found who reacted with ${emoji} for message ${messageId}`,
+    );
+    throw new Error("No users found for the given emoji reaction");
+  }
+
 
   logger.info(
     `Fetched users who reacted with ${emoji} for message ${messageId}`,
