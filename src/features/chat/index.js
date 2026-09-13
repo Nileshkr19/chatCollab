@@ -7,6 +7,7 @@ import channelInvitationRoutes from "./channelInvitation/channelInvitation.route
 import messageAttachmentRoutes from "./messageAttachment/messageAttachment.routes.js";
 import reactionRoutes from "./reaction/reaction.routes.js";
 import readReceiptRoutes from "./readReceipts/readReceipts.routes.js";
+import userPresenceRoutes from "./userPresence/userPresence.routes.js";
 
 const router = express.Router({ mergeParams: true });
 
@@ -57,5 +58,11 @@ router.use("/channels/:channelId/messages/:messageId/reactions", reactionRoutes)
  * Base: /workspaces/:workspaceId/chat/channels/:channelId/read-receipts
  */
 router.use("/channels/:channelId/read-receipts", readReceiptRoutes);
+
+/**
+ * User Presence Routes
+ * Base: /workspaces/:workspaceId/chat
+ */
+router.use("/", userPresenceRoutes);
 
 export default router;
