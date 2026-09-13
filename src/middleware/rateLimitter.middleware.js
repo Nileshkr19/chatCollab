@@ -7,6 +7,8 @@ let registerLimiter = null;
 let loginLimiter = null;
 let forgotPasswordLimiter = null;
 let workspaceRateLimiter = null;
+let chatRateLimiter = null;
+let presenceRefreshLimiter = null;
 
 const createRateLimiter = ({ windowMs, max, message, prefix }) => {
   // Bypass rate limiting in development
@@ -67,7 +69,21 @@ export const initializeRateLimiters = () => {
     message:
       "Too many requests from this IP/email, please try again after an hour",
     prefix: "workspace",
-  })
+  });
+
+  chatRateLimiter = createRateLimiter({
+    windowMs: 15 * 60 * 1000,
+    max: 300,
+    message: "Too many chat requests, please try again later",
+    prefix: "chat",
+  });
+
+  presenceRefreshLimiter = createRateLimiter({
+    windowMs: 60 * 1000,
+    max: 120,
+    message: "Too many presence refresh requests, please try again later",
+    prefix: "presence-refresh",
+  });
 };
 
 // Export wrapper functions
@@ -75,3 +91,5 @@ export const getRegisterLimiter = () => registerLimiter;
 export const getLoginLimiter = () => loginLimiter;
 export const getForgotPasswordLimiter = () => forgotPasswordLimiter;
 export const getWorkspaceRateLimiter = () => workspaceRateLimiter;
+export const getChatRateLimiter = () => chatRateLimiter;
+export const getPresenceRefreshLimiter = () => presenceRefreshLimiter;

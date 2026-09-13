@@ -1,5 +1,6 @@
 import express from "express";
-import {protect}  from "../auth/auth.middleware.js";
+import { protect } from "../auth/auth.middleware.js";
+import { getChatRateLimiter } from "../../middleware/rateLimitter.middleware.js";
 import channelRoutes from "./channel/channel.routes.js";
 import memberRoutes from "./member/channelMember.routes.js";
 import messageRoutes from "./message/message.routes.js";
@@ -10,6 +11,13 @@ import readReceiptRoutes from "./readReceipts/readReceipts.routes.js";
 import userPresenceRoutes from "./userPresence/userPresence.routes.js";
 
 const router = express.Router({ mergeParams: true });
+
+const chatRateLimiterMiddleware = (req, res, next) =>
+  getChatRateLimiter()(req, res, next);
+
+// ============= Apply Rate Limiting to All Chat Routes =============
+// All chat routes are subject to rate limiting
+router.use(chatRateLimiterMiddleware);
 
 // ============= Apply Auth to All Chat Routes =============
 // All chat routes require authentication

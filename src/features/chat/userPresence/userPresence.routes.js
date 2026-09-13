@@ -12,6 +12,7 @@ import {
   deleteUserPresenceController,
 } from "./userPresence.controller.js";
 import { validate } from "@middleware/validate.middleware.js";
+import { getPresenceRefreshLimiter } from "@middleware/rateLimitter.middleware.js";
 import {
   setPresenceSchema,
   workspacePresenceParamsSchema,
@@ -21,6 +22,8 @@ const router = express.Router({ mergeParams: true });
 
 const workspaceAccess = [checkWorkspaceMembership];
 const channelAccess = [checkWorkspaceMembership, checkChannelMembership];
+const presenceRefreshLimiterMiddleware = (req, res, next) =>
+  getPresenceRefreshLimiter()(req, res, next);
 
 router.post(
   "/channels/:channelId/presence",
@@ -41,6 +44,7 @@ router.get(
 
 router.post(
   "/presence/refresh",
+  presenceRefreshLimiterMiddleware,
   ...workspaceAccess,
   validate({ params: workspacePresenceParamsSchema }),
   refreshUserPresenceController,
