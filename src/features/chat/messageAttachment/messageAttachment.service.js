@@ -1,9 +1,9 @@
-import { stroageProvider } from "@config/storage.js";
+import { storageProvider } from "@config/storage.js";
 import MessageAttachment from "./messageAttachment.models.js";
 import Message from "../message/message.models.js";
 import logger from "@utils/logger.js";
 import { v4 as uuidv4 } from "uuid";
-import { prisma } from "@config/connectPostgres.js";
+import { getUsersWithAvatarsByIds } from "../../auth/user-access.service.js";
 import path from "path";
 
 const determineFileType = (mimeType) => {
@@ -37,14 +37,14 @@ export const uploadAttachmentService = async (
   const fileType = determineFileType(file.mimetype);
 
   const [uploadResult] = await Promise.all([
-    stroageProvider.upload(key, file.buffer, file.mimetype),
+    storageProvider.upload(key, file.buffer, file.mimetype),
     Message.findByIdAndUpdate(messageId, {
       $inc: { attachmentCount: 1 },
       $set: { hasAttachments: true },
     }),
   ]);
 
-  const publicUrl = stroageProvider.getPublicUrl(key);
+  const publicUrl = storageProvider.getPublicUrl(key);
 
   const attachment = await MessageAttachment.create({
     messageId,
@@ -98,16 +98,7 @@ export const getChannelAttachmentsService = async (
 
   const uploaderId = [...new Set(result.map((att) => att.uploadedBy))];
 
-  const uploaders = await prisma.user.findMany({
-    where: { id: { in: uploaderId } },
-    select: {
-      id: true,
-      firstName: true,
-      lastName: true,
-      username: true,
-      avatar_url: true,
-    },
-  });
+  const uploaders = await getUsersWithAvatarsByIds(uploaderId);
 
   const uploaderMap = uploaders.reduce((acc, user) => {
     acc[user.id] = user;

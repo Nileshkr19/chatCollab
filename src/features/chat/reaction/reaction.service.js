@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 import Reaction from "./reaction.models.js";
 import Message from "../message/message.models.js";
 import logger from "@utils/logger";
-import { prisma } from "@config/connectPostgres.js";
+import { getUsersByIds } from "../../auth/user-access.service.js";
 
 export const addReactionService = async (messageId, userId, emoji) => {
   const message = await Message.findById(messageId);
@@ -111,19 +111,11 @@ export const getReactionsByEmojiService = async (messageId, emoji) => {
 
   const userIds = reactions.map((reaction) => reaction.userId);
 
-  const user = await prisma.user.findMany({
-    where: { id: { in: userIds } },
-    select: {
-      id: true,
-      firstName: true,
-      lastName: true,
-      email: true,
-      username: true,
-    },
-  });
+  const user = await getUsersByIds(userIds);
 
   logger.info(
     `Fetched users who reacted with ${emoji} for message ${messageId}`,
   );
   return user;
 };
+ 

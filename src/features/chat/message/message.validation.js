@@ -4,6 +4,8 @@ const objectId = z
   .string()
   .regex(/^[0-9a-fA-F]{24}$/, "Invalid MongoDB ID format");
 
+const workspaceId = z.string().uuid("Invalid workspace ID format");
+
 const paginationQuery = {
   limit: z.coerce.number().int().min(1).max(100).default(50),
   cursor: z
@@ -51,14 +53,17 @@ export const bulkDeleteMessagesSchema = z.object({
 });
 
 export const channelMessagesParamsSchema = z.object({
+  workspaceId,
   channelId: objectId,
 });
 
 export const messageParamsSchema = z.object({
+  workspaceId,
   messageId: objectId,
 });
 
 export const channelMessageParamsSchema = z.object({
+  workspaceId,
   channelId: objectId,
   messageId: objectId,
 });

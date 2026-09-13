@@ -2,7 +2,7 @@ import ChannelInvitation from "./channelInvitation.models.js";
 import ChannelMember from "../member/channelMember.models.js";
 import Channel from "../channel/channel.models.js";
 import logger from "@utils/logger.js";
-import { prisma } from "@config/connectPostgres";
+import { getActiveWorkspaceMembership } from "../../workspace/workspace-access.service.js";
 
 export const createChannelInvitation = async (
   channelId,
@@ -27,14 +27,10 @@ export const createChannelInvitation = async (
     throw error;
   }
 
-  const workspaceMember = await prisma.workspaceMember.findUnique({
-    where: {
-      workspace_id_user_id: {
-        workspace_id: workspaceId,
-        user_id: invitedUserId,
-      },
-    },
-  });
+  const workspaceMember = await getActiveWorkspaceMembership(
+    workspaceId,
+    invitedUserId,
+  );
   if (!workspaceMember) {
     const error = new Error("Invited user is not a member of the workspace");
     error.statusCode = 400;

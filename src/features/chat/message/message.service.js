@@ -7,6 +7,7 @@ export const createMessageService = async (
   senderId,
   content,
   type,
+  parentId,
 ) => {
   try {
     const newMessage = await Message.create({
@@ -14,6 +15,7 @@ export const createMessageService = async (
       senderId,
       content,
       type,
+      parentId,
     });
 
     await Channel.findByIdAndUpdate(channelId, {
@@ -137,15 +139,22 @@ export const getMessageByIdService = async (messageId) => {
   }
 };
 
-export const bulkDeleteMessagesService = async (messageIds, userId) => {
+export const bulkDeleteMessagesService = async (
+  channelId,
+  userId,
+  messageIds,
+) => {
   try {
-    const messages = await Message.find({ _id: { $in: messageIds } });
+    const messages = await Message.find({
+      _id: { $in: messageIds },
+      channelId,
+    });
 
     // Permission check moved to middleware (checkPermission with ownership validation)
     // Middleware will verify canDeleteMessages (own) or canDeleteAllMessages (all)
 
     const deletedMessages = await Message.updateMany(
-      { _id: { $in: messageIds } },
+      { _id: { $in: messageIds }, channelId },
       { isDeleted: true, deletedBy: userId, deletedAt: new Date() },
     );
     logger.info(`Bulk deleted messages by user ${userId}`);

@@ -1,23 +1,7 @@
 import ChannelMember from "./channelMember.models.js";
 import logger from "@utils/logger.js";
 import Channel from "../channel/channel.models.js";
-import { prisma } from "@config/connectPostgres.js";
-
-// Check if a target user is an active member of the workspace
-const workspaceMemberExists = async (workspaceId, targetUserId) => {
-  const workspaceMember = await prisma.workspaceMember.findUnique({
-    where: {
-      workspace_id_user_id: {
-        workspace_id: workspaceId,
-        user_id: targetUserId,
-      },
-    },
-    select: {
-      is_active: true,
-    },
-  });
-  return workspaceMember;
-};
+import { getActiveWorkspaceMembership } from "../../workspace/workspace-access.service.js";
 
 // Self action check to prevent users from performing actions on themselves
 const selfActionCheck = (actionBy, targetUserId) => {
@@ -43,12 +27,12 @@ export const addChannelMemberService = async (
   addedBy,
   targetUserId,
 ) => {
-  const workspaceMember = await workspaceMemberExists(
+  const workspaceMember = await getActiveWorkspaceMembership(
     workspaceId,
     targetUserId,
   );
 
-  if (!workspaceMember || !workspaceMember.is_active) {
+  if (!workspaceMember) {
     const error = new Error("User is not a member of the workspace");
     error.statusCode = 400;
     throw error;
@@ -132,8 +116,11 @@ export const removeChannelMemberService = async (
   removedBy,
   targetUserId,
 ) => {
-  const worspaceMember = await workspaceMemberExists(workspaceId, targetUserId);
-  if (!worspaceMember || !worspaceMember.is_active) {
+  const worspaceMember = await getActiveWorkspaceMembership(
+    workspaceId,
+    targetUserId,
+  );
+  if (!worspaceMember) {
     const error = new Error("User is not a member of the workspace");
     error.statusCode = 400;
     throw error;
@@ -193,11 +180,11 @@ export const updateChannelMemberRoleService = async (
   newRole,
   updatedBy,
 ) => {
-  const workspaceMember = await workspaceMemberExists(
+  const workspaceMember = await getActiveWorkspaceMembership(
     workspaceId,
     targetUserId,
   );
-  if (!workspaceMember || !workspaceMember.is_active) {
+  if (!workspaceMember) {
     const error = new Error("User is not a member of the workspace");
     error.statusCode = 400;
     throw error;
@@ -242,9 +229,12 @@ export const transferChannelOwnershipService = async (
   newOwnerId,
   transferedBy,
 ) => {
-  const workspaceMember = await workspaceMemberExists(workspaceId, newOwnerId);
+  const workspaceMember = await getActiveWorkspaceMembership(
+    workspaceId,
+    newOwnerId,
+  );
 
-  if (!workspaceMember || !workspaceMember.is_active) {
+  if (!workspaceMember) {
     const error = new Error(`${newOwnerId} is not a member of the workspace`);
     error.statusCode = 400;
     throw error;

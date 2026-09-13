@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 import Channel from "./channel.models.js";
 import ChannelMember from "../member/channelMember.models.js";
 import logger from "@utils/logger.js";
+import { assertCanCreateChannel } from "../../workspace/workspace-access.service.js";
 
 export const createChannelService = async (
   workspaceId,
@@ -9,6 +10,8 @@ export const createChannelService = async (
   { name, type, topic, isPrivate },
 ) => {
   try {
+    await assertCanCreateChannel(workspaceId, creatorId);
+
     const existingChannel = await Channel.findOne({
       workspaceId,
       isRemoved: false,
@@ -279,4 +282,3 @@ export const getArchivedChannelsService = async (workspaceId) => {
     throw new Error("Failed to fetch archived channels");
   }
 };
-

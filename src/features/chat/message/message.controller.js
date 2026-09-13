@@ -20,7 +20,7 @@ import {
 export const createMessageController = asyncHandler(async (req, res) => {
   const channelId = req.params.channelId;
   const senderId = req.user.userId;
-  const { content, type } = req.body;
+  const { content, type, parentId } = req.body;
 
   if (!content || content.trim() === "") {
     throw new apiError(400, "Message content cannot be empty");
@@ -31,6 +31,7 @@ export const createMessageController = asyncHandler(async (req, res) => {
     senderId,
     content,
     type,
+    parentId,
   );
 
   logger.info(`Message created in channel ${channelId} by user ${senderId}`);

@@ -49,7 +49,6 @@ export const verifyAccessToken = (token) => {
   } catch (error) {
     logger.error("Invalid access token");
     throw new Error("Invalid access token");
-    return null;
   }
 };
 
@@ -59,6 +58,5 @@ export const verifyRefreshToken = (token) => {
   } catch (error) {
     logger.error("Invalid refresh token");
     throw new Error("Invalid refresh token");
-    return null;
   }
 };
