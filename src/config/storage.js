@@ -12,7 +12,7 @@ if (!supabaseUrl || !supabaseKey) {
 const supabase = createClient(supabaseUrl, supabaseKey);
 const BUCKET_NAME = "attachments";
 
-export const stroageProvider = {
+export const storageProvider = {
   // Upload a file to Supabase Storage
   async upload(key, file, mimeType) {
     const { data, error } = await supabase.storage

@@ -34,3 +34,4 @@ const validate = (schemaOrSchemas) => {
 };
 
 export default validate;
+export { validate };
