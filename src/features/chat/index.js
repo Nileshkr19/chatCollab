@@ -5,6 +5,8 @@ import memberRoutes from "./member/channelMember.routes.js";
 import messageRoutes from "./message/message.routes.js";
 import channelInvitationRoutes from "./channelInvitation/channelInvitation.routes.js";
 import messageAttachmentRoutes from "./messageAttachment/messageAttachment.routes.js";
+import reactionRoutes from "./reaction/reaction.routes.js";
+import readReceiptRoutes from "./readReceipts/readReceipts.routes.js";
 
 const router = express.Router({ mergeParams: true });
 
@@ -43,5 +45,17 @@ router.use("/channels/:channelId/invitations", channelInvitationRoutes);
  * Base: /workspaces/:workspaceId/channels/:channelId/attachments
  */
 router.use("/channels/:channelId/attachments", messageAttachmentRoutes);
+
+/**
+ * Reaction Routes
+ * Base: /workspaces/:workspaceId/channels/:channelId/messages/:messageId/reactions
+ */
+router.use("/channels/:channelId/messages/:messageId/reactions", reactionRoutes);
+
+/**
+ * Read Receipt Routes
+ * Base: /workspaces/:workspaceId/chat/channels/:channelId/read-receipts
+ */
+router.use("/channels/:channelId/read-receipts", readReceiptRoutes);
 
 export default router;

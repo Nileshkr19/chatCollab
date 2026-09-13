@@ -3,73 +3,16 @@ import Message from "../message/message.models.js";
 import logger from "@utils/logger.js";
 
 export const createReadReceipt = async (channelId, userId) => {
-  const newReadReceipt = await ReadReceipt.create({
-    channelId,
-    userId,
-  });
+  const readReceipt = await ReadReceipt.findOneAndUpdate(
+    { channelId, userId },
+    { $setOnInsert: { channelId, userId } },
+    { new: true, upsert: true, setDefaultsOnInsert: true },
+  );
 
   logger.info(
     `Created new read receipt for user ${userId} in channel ${channelId}`,
   );
-  return newReadReceipt;
-};
-
-export const updateReadReceipt = async (channelId, userId, messagesId) => {
-  const readReceipt = await ReadReceipt.findOne({ channelId, userId });
-  if (!readReceipt) {
-    logger.warn(
-      `No read receipt found for user ${userId} in channel ${channelId}`,
-    );
-    return null;
-  }
-
-  const lastReadMessage = await Message.findById(messagesId);
-  if (!lastReadMessage) {
-    logger.warn(
-      `No message found with ID ${messagesId} for updating read receipt`,
-    );
-    return null;
-  }
-
-  const updatedReadReceipt = await ReadReceipt.findOneAndUpdate(
-    { channelId, userId },
-    {
-      lastReadMessageId: messagesId,
-      lastReadAt: new Date(),
-      unreadCount: 0,
-    },
-    { new: true },
-  );
-
-  logger.info(
-    `Updated read receipt for user ${userId} in channel ${channelId} to message ${messagesId}`,
-  );
-  return updatedReadReceipt;
-};
-
-export const markMessagesAsRead = async (channelId, userId) => {
-  const readReceipt = await ReadReceipt.findOne({ channelId, userId });
-  if (!readReceipt) {
-    logger.warn(
-      `No read receipt found for user ${userId} in channel ${channelId}`,
-    );
-    return null;
-  }
-
-  const updatedReadReceipt = await ReadReceipt.findOneAndUpdate(
-    { channelId, userId },
-    {
-      lastReadMessageId: null,
-      lastReadAt: new Date(),
-      unreadCount: 0,
-    },
-    { new: true },
-  );
-
-  logger.info(
-    `Marked all messages as read for user ${userId} in channel ${channelId}`,
-  );
-  return updatedReadReceipt;
+  return readReceipt;
 };
 
 export const getReadReceipt = async (channelId, userId) => {
@@ -107,7 +50,7 @@ export const incrementUnreadCount = async (channelId, userId) => {
   const readReceipt = await ReadReceipt.findOneAndUpdate(
     { channelId, userId },
     { $inc: { unreadCount: 1 } },
-    { new: true },
+    { new: true, upsert: true, setDefaultsOnInsert: true },
   );
 
   if (!readReceipt) {
@@ -158,10 +101,27 @@ export const deleteReadReceipt = async (channelId, userId) => {
 };
 
 export const updateLastReadMessage = async (channelId, userId, messageId) => {
+  const message = await Message.findOne({
+    _id: messageId,
+    channelId,
+    isDeleted: false,
+  });
+
+  if (!message) {
+    logger.warn(
+      `No active message found with ID ${messageId} in channel ${channelId}`,
+    );
+    return null;
+  }
+
   const readReceipt = await ReadReceipt.findOneAndUpdate(
     { channelId, userId },
-    { lastReadMessageId: messageId, lastReadAt: new Date() },
-    { new: true },
+    {
+      lastReadMessageId: messageId,
+      lastReadAt: new Date(),
+      unreadCount: 0,
+    },
+    { new: true, upsert: true, setDefaultsOnInsert: true },
   );
 
   if (!readReceipt) {
@@ -190,4 +150,4 @@ export const getChannelReadStatus = async (channelId) => {
     `Retrieved read status for channel ${channelId} with ${readStatus.length} entries`,
   );
   return readStatus;
-};
+}; 

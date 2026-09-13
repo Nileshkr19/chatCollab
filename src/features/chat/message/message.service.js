@@ -1,6 +1,8 @@
 import Message from "@features/chat/message/message.models.js";
 import Channel from "@features/chat/channel/channel.models.js";
 import logger from "@utils/logger.js";
+import ChannelMember from "@features/chat/member/channelMember.models.js";
+import { incrementUnreadCount } from "@features/chat/readReceipts/readReceipts.service.js";
 
 export const createMessageService = async (
   channelId,
@@ -26,6 +28,16 @@ export const createMessageService = async (
         sentAt: newMessage.createdAt,
       },
     });
+
+    const members = await ChannelMember.find({
+      channelId,
+      isRemoved: false,
+      userId: { $ne: senderId },
+    }).select("userId");
+
+    await Promise.all(
+      members.map((member) => incrementUnreadCount(channelId, member.userId)),
+    );
 
     logger.info(`Message created in channel ${channelId} by user ${senderId}`);
 
