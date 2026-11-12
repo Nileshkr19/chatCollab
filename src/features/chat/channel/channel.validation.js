@@ -6,7 +6,7 @@ export const createChannelSchema = z.object({
   topic: z.string().max(100).optional(),
   isPrivate: z.boolean().optional(),
   avatarUrl: z.string().url().optional(),
-  type: z.enum(["GROUP", "DIRECT"]).optional(),
+  type: z.enum(["GROUP", "DM"]).optional(),
 });
 
 export const updateChannelSchema = z.object({
