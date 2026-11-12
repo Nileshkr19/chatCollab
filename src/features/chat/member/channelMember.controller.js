@@ -33,8 +33,8 @@ export const addChannelMemberController = asyncHandler(async (req, res) => {
   res
     .status(201)
     .json(
-      apiResponse(
-        true,
+    new apiResponse(
+       201,
         "Member added to the channel successfully",
         channelMember,
       ),
@@ -65,8 +65,8 @@ export const removeChannelMemberController = asyncHandler(async (req, res) => {
   res
     .status(200)
     .json(
-      apiResponse(
-        true,
+    new apiResponse(
+        200,
         "Member removed from the channel successfully",
         removedMember,
       ),
@@ -99,7 +99,7 @@ export const updateChannelMemberRoleController = asyncHandler(
     res
       .status(200)
       .json(
-        apiResponse(true, "Member role updated successfully", updatedMember),
+        new apiResponse(200, "Member role updated successfully", updatedMember),
       );
   },
 );
@@ -129,8 +129,8 @@ export const transferChannelOwnershipController = asyncHandler(
     res
       .status(200)
       .json(
-        apiResponse(
-          true,
+        new apiResponse(
+          200,
           "Channel ownership transferred successfully",
           updatedChannel,
         ),
@@ -157,5 +157,5 @@ export const leaveChannelController = asyncHandler(async (req, res) => {
 
   res
     .status(200)
-    .json(apiResponse(true, "Left the channel successfully", leftChannel));
+    .json(new apiResponse(200, "Left the channel successfully", leftChannel));
 });

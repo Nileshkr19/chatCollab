@@ -1,5 +1,5 @@
 import "dotenv/config";
-
+import http from "http";
 import app from "./app.js";
 import connectMongoDB from "./config/connectMongoDB.js";
 import connectPostgres from "./config/connectPostgres.js";
@@ -9,8 +9,9 @@ import mongoose from "mongoose";
 import { prisma } from "./config/connectPostgres.js";
 import { getRedis } from "./config/connectRedis.js";
 import { initializeRateLimiters } from "./middleware/rateLimitter.middleware.js";
+import { initWebSocketServer } from "./realtime/websocket.server.js";
 
-const PORT = process.env.PORT || 3003;
+const PORT = process.env.PORT || 3000;
 let isShuttingDown = false;
 
 process.on("unhandledRejection", (reason, promise) => {
@@ -30,16 +31,40 @@ process.on("uncaughtException", (error) => {
   process.exit(1);
 });
 
+const httpServer = http.createServer(app);
+
 const startServer = async () => {
   try {
-    await Promise.all([connectMongoDB(), connectPostgres(), connectRedis()]);
+    const start = performance.now();
+
+    await Promise.all([
+      connectMongoDB().then(() => {
+        logger.info(`MongoDB: ${(performance.now() - start).toFixed(0)}ms`);
+      }),
+
+      connectPostgres().then(() => {
+        logger.info(`PostgreSQL: ${(performance.now() - start).toFixed(0)}ms`);
+      }),
+
+      connectRedis().then(() => {
+        logger.info(`Redis: ${(performance.now() - start).toFixed(0)}ms`);
+      }),
+    ]);
+
+    logger.info(
+      `All services connected in ${(performance.now() - start).toFixed(0)}ms`,
+    );
 
     // Initialize rate limiters after Redis is connected
     initializeRateLimiters();
     logger.info("Rate limiters initialized with Redis store");
 
-    const server = app.listen(PORT, () => {
-      logger.info(`Server running on port ${PORT}`);
+    // Initialize WebSocket server
+    initWebSocketServer(httpServer);
+    logger.info("WebSocket server initialized");
+
+    const server = httpServer.listen(PORT, () => {
+      logger.info(`Server is running on port ${PORT}`);
     });
 
     // time taken to start server
