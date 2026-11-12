@@ -1,5 +1,5 @@
 import { getRedis } from "@config/connectRedis";
-import logger from "./logger";
+import logger from "./logger.js";
 
 const DEFAULT_CACHE_TTL = 60 * 60; // 1 hour
 

@@ -9,7 +9,6 @@ import {
 import {
   reactionMessageParamsSchema,
   reactionBodySchema,
-  reactionQuerySchema,
   reactionEmojiParamsSchema,
 } from "./reaction.validation.js";
 
