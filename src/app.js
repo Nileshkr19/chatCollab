@@ -3,6 +3,7 @@ import helmet from "helmet";
 import morgan from "morgan";
 import cors from "cors";
 import cookieParser from "cookie-parser";
+import rateLimit from "express-rate-limit";
 import logger from "./utils/logger.js";
 import { protect } from "./features/auth/auth.middleware.js";
 import authRoutes from "./features/auth/auth.routes.js";
@@ -10,6 +11,13 @@ import workspaceRoutes from "./features/workspace/workspace.routes.js";
 import chatRoutes from "./features/chat/index.js";
 
 const app = express();
+
+const workspaceLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 // Middleware
 app.use(helmet());
@@ -29,7 +37,7 @@ app.use(express.json());
 app.use(cookieParser());
 
 app.use("/api/auth", authRoutes);
-app.use("/api/workspaces", protect, workspaceRoutes);
+app.use("/api/workspaces", workspaceLimiter, protect, workspaceRoutes);
 app.use("/api/workspaces/:workspaceId/chat", chatRoutes);
 app.get("/health", (req, res) => {
   res.status(200).json({ status: "ok" });
