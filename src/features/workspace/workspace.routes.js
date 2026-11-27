@@ -24,6 +24,8 @@ import {
 import validate from "../../middleware/validate.middleware.js";
 import { getWorkspaceRateLimiter } from "../../middleware/rateLimitter.middleware.js";
 
+import permissionRoutes from "@common/permission/permission.routes.js";
+
 const router = Router();
 
 // Apply workspace rate limiter to all workspace routes
@@ -31,6 +33,7 @@ const workspaceRateLimiterMiddleware = (req, res, next) =>
   getWorkspaceRateLimiter()(req, res, next);
 
 router.use(workspaceRateLimiterMiddleware);
+router.use("/:workspaceId/permissions", permissionRoutes);
 
 router.post("/", validate(createWorkspaceSchema), createWorkspace);
 router.get("/", getUserWorkspaces);

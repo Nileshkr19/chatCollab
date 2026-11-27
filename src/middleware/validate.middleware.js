@@ -15,14 +15,23 @@ const validate = (schemaOrSchemas) => {
       if (!result.success) {
         errors.push(
           ...result.error.issues.map((issue) => {
-            const path = issue.path.length > 0 ? `.${issue.path.join(".")}` : "";
+            const path =
+              issue.path.length > 0 ? `.${issue.path.join(".")}` : "";
             return `${section}${path}: ${issue.message}`;
           }),
         );
         continue;
       }
 
-      req[section] = result.data;
+      if (section === "query") {
+        Object.defineProperty(req, "query", {
+          value: result.data,
+          writable: true,
+          configurable: true,
+        });
+      } else {
+        req[section] = result.data;
+      }
     }
 
     if (errors.length > 0) {

@@ -12,9 +12,9 @@ function isValidUrl(url) {
 export const createWorkspaceSchema = z.object({
   name: z
     .string()
+    .trim()
     .min(3, "Workspace name must be at least 3 characters")
-    .max(50, "Workspace name must be less than 50 characters")
-    .trim(),
+    .max(50, "Workspace name must be less than 50 characters"),
 
   logo_url: z
     .string()
@@ -30,9 +30,9 @@ export const updateWorkspaceSchema = z
   .object({
     name: z
       .string()
+      .trim()
       .min(3, "Workspace name must be at least 3 characters")
       .max(50, "Workspace name must be less than 50 characters")
-      .trim()
       .optional(),
 
     logo_url: z
@@ -57,7 +57,7 @@ export const inviteMemberSchema = z.object({
 
 export const updateMemberRoleSchema = z.object({
   role: z.enum(["MANAGER", "MEMBER"], {
-    errorMap: () => ({ message: "Role must be MANAGER or MEMBER" }),
+    error: () => ({ message: "Role must be MANAGER or MEMBER" }),
   }),
 });
 

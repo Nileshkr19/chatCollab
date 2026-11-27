@@ -3,6 +3,11 @@ import Channel from "@features/chat/channel/channel.models.js";
 import logger from "@utils/logger.js";
 import ChannelMember from "@features/chat/member/channelMember.models.js";
 import { incrementUnreadCount } from "@features/chat/readReceipts/readReceipts.service.js";
+import apiError from "@utils/apiError";
+
+// ============================================================
+// CREATE MESSAGE
+// ============================================================
 
 export const createMessageService = async (
   channelId,
@@ -44,11 +49,15 @@ export const createMessageService = async (
     return newMessage;
   } catch (error) {
     logger.error(
-      `Error creating message in channel ${channelId} by user ${senderId}: ${error.message}`,
+      `Error creating message in channel ${channelId}: ${error.message}`,
     );
     throw error;
   }
 };
+
+// ============================================================
+// GET MESSAGES BY CHANNEL ID
+// ============================================================
 
 export const getMessagesByChannelIdService = async (
   channelId,
@@ -56,13 +65,18 @@ export const getMessagesByChannelIdService = async (
   cursor,
 ) => {
   try {
-    const query = { channelId, isDeleted: false };
+    const query = {
+      channelId,
+      isDeleted: false,
+    };
 
     if (cursor) {
+      const cursorDate = new Date(cursor.createdAt);
+
       query.$or = [
-        { createdAt: { $lt: new Date(cursor.createdAt) } },
+        { createdAt: { $lt: cursorDate } },
         {
-          createdAt: new Date(cursor.createdAt),
+          createdAt: cursorDate,
           _id: { $lt: cursor._id },
         },
       ];
@@ -73,15 +87,20 @@ export const getMessagesByChannelIdService = async (
       .limit(limit);
 
     let nextCursor = null;
+
     if (messages.length > 0) {
       const lastMessage = messages[messages.length - 1];
+
       nextCursor = {
         createdAt: lastMessage.createdAt,
         _id: lastMessage._id,
       };
     }
 
-    return { messages, nextCursor };
+    return {
+      messages,
+      nextCursor,
+    };
   } catch (error) {
     logger.error(
       `Error fetching messages for channel ${channelId}: ${error.message}`,
@@ -90,60 +109,96 @@ export const getMessagesByChannelIdService = async (
   }
 };
 
-export const deleteMessageService = async (messageid, userId) => {
+// ============================================================
+// DELETE MESSAGE
+// ============================================================
+
+export const deleteMessageService = async (channelId, messageId, userId) => {
   try {
-    const message = await Message.findById(messageid);
-    if (!message) {
-      throw new Error("Message not found");
-    }
-
-    // Permission check moved to middleware (checkPermission with ownership validation)
-
-    const deletedMessage = await Message.findByIdAndUpdate(
-      messageid,
-      { isDeleted: true, deletedBy: userId, deletedAt: new Date() },
+    const deletedMessage = await Message.findOneAndUpdate(
+      {
+        _id: messageId,
+        channelId,
+        isDeleted: false,
+      },
+      {
+        $set: {
+          isDeleted: true,
+          deletedBy: userId,
+          deletedAt: new Date(),
+        },
+      },
       { new: true },
     );
 
-    logger.info(`Message ${messageid} deleted by user ${userId}`);
+    if (!deletedMessage) {
+      throw new apiError(404, "Message not found in this channel");
+    }
+
+    logger.info(`Message ${messageId} deleted by user ${userId}`);
 
     return deletedMessage;
   } catch (error) {
-    logger.error(`Error deleting message ${messageid}: ${error.message}`);
+    logger.error(`Error deleting message ${messageId}: ${error.message}`);
     throw error;
   }
 };
 
-export const editMessageService = async (messageid, userId, content) => {
+// ============================================================
+// EDIT MESSAGE
+// ============================================================
+
+export const editMessageService = async (
+  channelId,
+  messageId,
+  userId,
+  content,
+) => {
   try {
-    const message = await Message.findById(messageid);
-    if (!message) {
-      throw new Error("Message not found");
-    }
-
-    // Permission check moved to middleware (checkPermission with ownership validation)
-
-    const updatedMessage = await Message.findByIdAndUpdate(
-      messageid,
-      { content: content, isEdited: true },
-      { new: true },
+    const updatedMessage = await Message.findOneAndUpdate(
+      {
+        _id: messageId,
+        channelId,
+        isDeleted: false,
+      },
+      {
+        $set: {
+          content,
+          isEdited: true,
+        },
+      },
+      { new: true, runValidators: true },
     );
 
-    logger.info(`Message ${messageid} edited by user ${userId}`);
+    if (!updatedMessage) {
+      throw new apiError(404, "Message not found in this channel");
+    }
+
+    logger.info(`Message ${messageId} edited by user ${userId}`);
 
     return updatedMessage;
   } catch (error) {
-    logger.error(`Error editing message ${messageid}: ${error.message}`);
+    logger.error(`Error editing message ${messageId}: ${error.message}`);
     throw error;
   }
 };
 
-export const getMessageByIdService = async (messageId) => {
+// ============================================================
+// GET MESSAGE BY ID
+// ============================================================
+
+export const getMessageByIdService = async (channelId, messageId) => {
   try {
-    const message = await Message.findById(messageId);
+    const message = await Message.findOne({
+      _id: messageId,
+      channelId,
+      isDeleted: false,
+    });
+
     if (!message) {
-      throw new Error("Message not found");
+      throw new apiError(404, "Message not found in this channel");
     }
+
     return message;
   } catch (error) {
     logger.error(`Error fetching message ${messageId}: ${error.message}`);
@@ -151,25 +206,80 @@ export const getMessageByIdService = async (messageId) => {
   }
 };
 
+// ============================================================
+// BULK DELETE MESSAGES
+// ============================================================
+
 export const bulkDeleteMessagesService = async (
   channelId,
   userId,
   messageIds,
+  permissions,
+  isWorkspaceOwner,
 ) => {
   try {
-    const messages = await Message.find({
-      _id: { $in: messageIds },
-      channelId,
-    });
+    const uniqueMessageIds = [...new Set(messageIds)];
 
-    // Permission check moved to middleware (checkPermission with ownership validation)
-    // Middleware will verify canDeleteMessages (own) or canDeleteAllMessages (all)
+    if (uniqueMessageIds.length === 0) {
+      throw new apiError(400, "No message IDs provided");
+    }
+
+    const messages = await Message.find({
+      _id: { $in: uniqueMessageIds },
+      channelId,
+      isDeleted: false,
+    })
+      .select("_id senderId")
+      .lean();
+
+    if (messages.length !== uniqueMessageIds.length) {
+      throw new apiError(
+        404,
+        "One or more messages were not found in this channel",
+      );
+    }
+
+    if (!isWorkspaceOwner) {
+      const canDeleteOwn = permissions?.messages?.deleteOwn;
+      const canDeleteAll = permissions?.messages?.deleteAll;
+
+      const hasOtherUsersMessages = messages.some(
+        (message) => String(message.senderId) !== String(userId),
+      );
+
+      if (!canDeleteOwn && !canDeleteAll) {
+        throw new apiError(
+          403,
+          "You do not have permission to delete messages",
+        );
+      }
+
+      if (hasOtherUsersMessages && !canDeleteAll) {
+        throw new apiError(
+          403,
+          "You cannot delete messages sent by other users",
+        );
+      }
+    }
 
     const deletedMessages = await Message.updateMany(
-      { _id: { $in: messageIds }, channelId },
-      { isDeleted: true, deletedBy: userId, deletedAt: new Date() },
+      {
+        _id: { $in: uniqueMessageIds },
+        channelId,
+        isDeleted: false,
+      },
+      {
+        $set: {
+          isDeleted: true,
+          deletedBy: userId,
+          deletedAt: new Date(),
+        },
+      },
     );
-    logger.info(`Bulk deleted messages by user ${userId}`);
+
+    logger.info(
+      `Bulk deleted ${deletedMessages.modifiedCount} messages by user ${userId}`,
+    );
 
     return deletedMessages;
   } catch (error) {
@@ -178,10 +288,16 @@ export const bulkDeleteMessagesService = async (
   }
 };
 
+// ============================================================
+// COUNT MESSAGES
+// ============================================================
+
 export const countMessagesByChannelIdService = async (channelId) => {
   try {
-    const count = await Message.countDocuments({ channelId, isDeleted: false });
-    return count;
+    return await Message.countDocuments({
+      channelId,
+      isDeleted: false,
+    });
   } catch (error) {
     logger.error(
       `Error counting messages for channel ${channelId}: ${error.message}`,
@@ -189,6 +305,10 @@ export const countMessagesByChannelIdService = async (channelId) => {
     throw error;
   }
 };
+
+// ============================================================
+// SEARCH MESSAGES
+// ============================================================
 
 export const searchMessagesInChannelService = async (
   channelId,
@@ -204,31 +324,39 @@ export const searchMessagesInChannelService = async (
     };
 
     if (cursor) {
+      const cursorDate = new Date(cursor.createdAt);
+
       query.$or = [
-        { createdAt: { $lt: new Date(cursor.createdAt) } },
+        { createdAt: { $lt: cursorDate } },
         {
-          createdAt: new Date(cursor.createdAt),
+          createdAt: cursorDate,
           _id: { $lt: cursor._id },
         },
       ];
     }
 
+    // Chronological sorting keeps cursor pagination consistent.
     const messages = await Message.find(query, {
       score: { $meta: "textScore" },
     })
-      .sort({ score: { $meta: "textScore" }, createdAt: -1, _id: -1 })
+      .sort({ createdAt: -1, _id: -1 })
       .limit(limit);
 
     let nextCursor = null;
+
     if (messages.length > 0) {
       const lastMessage = messages[messages.length - 1];
+
       nextCursor = {
         createdAt: lastMessage.createdAt,
         _id: lastMessage._id,
       };
     }
 
-    return { messages, nextCursor };
+    return {
+      messages,
+      nextCursor,
+    };
   } catch (error) {
     logger.error(
       `Error searching messages in channel ${channelId}: ${error.message}`,
@@ -237,90 +365,150 @@ export const searchMessagesInChannelService = async (
   }
 };
 
-export const pinMessageService = async (messageId, userId) => {
+// ============================================================
+// PIN MESSAGE
+// ============================================================
+
+export const pinMessageService = async (channelId, messageId, userId) => {
   try {
-    const message = await Message.findById(messageId);
+    const message = await Message.findOne({
+      _id: messageId,
+      channelId,
+      isDeleted: false,
+    }).select("_id");
+
     if (!message) {
-      throw new Error("Message not found");
+      throw new apiError(404, "Message not found in this channel");
     }
 
-    const channel = await Channel.findById(message.channelId);
-    if (!channel) {
-      throw new Error("Channel not found");
-    }
-
-    // Permission check moved to middleware (checkPermission for pinning messages)
-
-    if (channel.pinnedMessages.includes(messageId)) {
-      throw new Error("Message is already pinned");
-    }
-
-    const pinnedMessage = await Channel.findByIdAndUpdate(
-      channel._id,
-      { $push: { pinnedMessages: messageId } },
+    // Atomic operation: prevents duplicate pinned IDs.
+    const pinnedChannel = await Channel.findOneAndUpdate(
+      {
+        _id: channelId,
+        pinnedMessages: { $ne: message._id },
+      },
+      {
+        $addToSet: {
+          pinnedMessages: message._id,
+        },
+      },
       { new: true },
     );
+
+    if (!pinnedChannel) {
+      const channelExists = await Channel.exists({
+        _id: channelId,
+      });
+
+      if (!channelExists) {
+        throw new apiError(404, "Channel not found");
+      }
+
+      throw new apiError(409, "Message is already pinned");
+    }
 
     logger.info(`Message ${messageId} pinned by user ${userId}`);
 
-    return pinnedMessage;
+    return pinnedChannel;
   } catch (error) {
     logger.error(`Error pinning message ${messageId}: ${error.message}`);
-    throw new Error(`Error pinning message: ${error.message}`);
+    throw error;
   }
 };
 
-export const unpinMessageService = async (messageId, userId) => {
+// ============================================================
+// UNPIN MESSAGE
+// ============================================================
+
+export const unpinMessageService = async (channelId, messageId, userId) => {
   try {
-    const message = await Message.findById(messageId);
+    const message = await Message.findOne({
+      _id: messageId,
+      channelId,
+      isDeleted: false,
+    }).select("_id");
+
     if (!message) {
-      throw new Error("Message not found");
+      throw new apiError(404, "Message not found in this channel");
     }
 
-    const channel = await Channel.findById(message.channelId);
-    if (!channel) {
-      throw new Error("Channel not found");
-    }
-
-    // Permission check moved to middleware (checkPermission for pinning messages)
-
-    if (!channel.pinnedMessages.includes(messageId)) {
-      throw new Error("Message is not pinned");
-    }
-
-    const unpinnedMessage = await Channel.findByIdAndUpdate(
-      channel._id,
-      { $pull: { pinnedMessages: messageId } },
+    // Atomic operation: removes the message ID from pinnedMessages.
+    const unpinnedChannel = await Channel.findOneAndUpdate(
+      {
+        _id: channelId,
+        pinnedMessages: message._id,
+      },
+      {
+        $pull: {
+          pinnedMessages: message._id,
+        },
+      },
       { new: true },
     );
 
+    if (!unpinnedChannel) {
+      const channelExists = await Channel.exists({
+        _id: channelId,
+      });
+
+      if (!channelExists) {
+        throw new apiError(404, "Channel not found");
+      }
+
+      throw new apiError(409, "Message is not pinned");
+    }
+
     logger.info(`Message ${messageId} unpinned by user ${userId}`);
 
-    return unpinnedMessage;
+    return unpinnedChannel;
   } catch (error) {
     logger.error(`Error unpinning message ${messageId}: ${error.message}`);
-    throw new Error(`Error unpinning message: ${error.message}`);
+    throw error;
   }
 };
 
+// ============================================================
+// GET PINNED MESSAGES
+// ============================================================
+
 export const getPinnedMessagesByChannelIdService = async (channelId) => {
   try {
-    const channel = await Channel.findById(channelId);
-    const pinnedMessages = await Message.find({
-      _id: { $in: channel.pinnedMessages },
-    });
+    const channel = await Channel.findById(channelId)
+      .select("pinnedMessages")
+      .lean();
 
-    if (!pinnedMessages) {
-      logger.info(`No pinned messages found for channel ${channelId}`);
-      throw new Error("No pinned messages found");
+    if (!channel) {
+      throw new apiError(404, "Channel not found");
     }
 
-    logger.info(`Fetched pinned messages for channel ${channelId}`);
+    if (!channel.pinnedMessages?.length) {
+      return [];
+    }
+
+    const messages = await Message.find({
+      _id: { $in: channel.pinnedMessages },
+      channelId,
+      isDeleted: false,
+    }).lean();
+
+    // Preserve the order in which messages were pinned.
+    const messagesById = new Map(
+      messages.map((message) => [String(message._id), message]),
+    );
+
+    const pinnedMessages = channel.pinnedMessages
+      .map((id) => messagesById.get(String(id)))
+      .filter(Boolean);
+
+    logger.info(
+      `Fetched ${pinnedMessages.length} pinned messages for channel ${channelId}`,
+    );
+
     return pinnedMessages;
   } catch (error) {
     logger.error(
       `Error fetching pinned messages for channel ${channelId}: ${error.message}`,
     );
-    throw new Error(`Error fetching pinned messages: ${error.message}`);
+    throw error;
   }
 };

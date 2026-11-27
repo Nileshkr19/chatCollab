@@ -18,7 +18,7 @@ export const createChannelService = async (
       isArchived: false,
 
       name: name?.trim(),
-      type: "GROUP",
+      type: type || "GROUP",
     });
     if (existingChannel) {
       const error = new Error(
@@ -32,25 +32,29 @@ export const createChannelService = async (
     session.startTransaction();
 
     try {
-      const channel = await Channel.create(
-        {
-          workspaceId,
-          createdBy: creatorId,
-          name: name.trim(),
-          type: type || "GROUP",
-          topic: topic?.trim() || null,
-          isPrivate: isPrivate || false,
-        },
+      const [channel] = await Channel.create(
+        [
+          {
+            workspaceId,
+            createdBy: creatorId,
+            name: name.trim(),
+            type: type || "GROUP",
+            topic: topic?.trim() || null,
+            isPrivate: isPrivate || false,
+          },
+        ],
         { session },
       );
 
       await Promise.all([
         ChannelMember.create(
-          {
-            channelId: channel._id,
-            userId: creatorId,
-            role: "ADMIN",
-          },
+          [
+            {
+              channelId: channel._id,
+              userId: creatorId,
+              role: "ADMIN",
+            },
+          ],
           { session },
         ),
         Channel.findByIdAndUpdate(

@@ -1,76 +1,146 @@
 import asyncHandler from "@utils/asyncHandler.js";
+import apiError from "@utils/apiError.js";
 import ChatPermission from "./permission.models.js";
 import { getCache, setCache } from "@utils/cache.js";
 import { redisKeys } from "@utils/redisKey.js";
 import logger from "@utils/logger.js";
+import { CHAT_PERMISSION_GROUPS } from "./permission.constants.js";
 
-/**
- * Centralized permission checker with ownership support
- * @param {string} permissionKey - Permission to check (e.g., 'canDeleteMessages')
- * @param {object} options - Optional configuration
- * @param {string} options.ownershipKey - Check ownership if not owner (e.g., 'canDeleteAllMessages')
- * @param {function} options.getOwnerId - Function to extract owner ID from req (can be async)
- */
-export const checkPermission = (permissionKey, options = {}) => {
+// Permission cache TTL: 5 minutes
+const PERMISSION_CACHE_TTL = 5 * 60;
+
+// ==========================================
+// HELPER FUNCTIONS
+// ==========================================
+
+// Get nested permission using dot notation
+const getNestedPermission = (permissions, permissionPath) => {
+  return permissionPath
+    .split(".")
+    .reduce((current, key) => current?.[key], permissions);
+};
+
+// Validate permission path against supported constants
+const isValidPermissionPath = (permissionPath) => {
+  if (typeof permissionPath !== "string") {
+    return false;
+  }
+
+  const [group, key, ...remaining] = permissionPath.split(".");
+
+  if (remaining.length > 0 || !group || !key) {
+    return false;
+  }
+
+  return (
+    Object.hasOwn(CHAT_PERMISSION_GROUPS, group) &&
+    CHAT_PERMISSION_GROUPS[group].includes(key)
+  );
+};
+
+// ==========================================
+// CHECK PERMISSION MIDDLEWARE
+// ==========================================
+
+export const checkPermission = (permissionPath, options = {}) => {
   return asyncHandler(async (req, res, next) => {
-    const workspaceId = req.params.workspaceId || req.body.workspaceId;
+    const workspaceId = req.params.workspaceId || req.body?.workspaceId;
+
     const role = req.channelMembership?.role || req.membership?.role;
+
     const userId = req.user?.userId;
 
-    if (!role) {
-      return res.status(403).json({ message: "Access denied: No role found" });
+    // Validate workspace and user context
+    if (!workspaceId) {
+      throw new apiError(400, "Workspace ID is required");
     }
 
-    // OWNER bypass all checks
-    if (req.membership?.role === "OWNER" ) {
+    if (!role || !userId) {
+      throw new apiError(403, "Access denied: No role or user found");
+    }
+
+    // Validate requested permission
+    if (!isValidPermissionPath(permissionPath)) {
+      throw new apiError(
+        500,
+        `Invalid permission configuration: ${permissionPath}`,
+      );
+    }
+
+    // Validate optional ownership permission
+    if (
+      options.ownershipKey &&
+      (!options.getOwnerId || !isValidPermissionPath(options.ownershipKey))
+    ) {
+      throw new apiError(500, "Invalid ownership permission configuration");
+    }
+
+    // Workspace OWNER bypasses role permissions
+    if (req.membership?.role === "OWNER") {
       return next();
     }
 
+    // Get permissions from Redis
     const cacheKey = redisKeys.chatPermissions(workspaceId, role);
+
     let permissions = await getCache(cacheKey);
 
+    // Cache miss: fetch permissions from MongoDB
     if (!permissions) {
-      const chatPermission = await ChatPermission.findOne({ workspaceId, role })
+      const chatPermission = await ChatPermission.findOne({
+        workspaceId,
+        role,
+      })
         .select("permissions")
         .lean();
 
-      if (!chatPermission) {
+      if (!chatPermission?.permissions) {
         logger.warn(
           `No permissions found for workspace ${workspaceId} and role ${role}`,
         );
-        return res
-          .status(403)
-          .json({ message: "Access denied: No permissions found" });
+
+        throw new apiError(403, "Access denied: No permissions found");
       }
 
       permissions = chatPermission.permissions;
 
-      await setCache(cacheKey, permissions, 60 * 60); // Cache for 1 hour
-      logger.debug(
-        `Permissions cached for workspace ${workspaceId} and role ${role}`,
-      );
+      await setCache(cacheKey, permissions, PERMISSION_CACHE_TTL);
     }
 
     // Check base permission
-    if (!permissions[permissionKey]) {
-      return res
-        .status(403)
-        .json({ message: "Access denied: Insufficient permissions" });
+    const hasPermission = getNestedPermission(permissions, permissionPath);
+
+    if (hasPermission !== true) {
+      throw new apiError(403, "Access denied: Insufficient permissions");
     }
 
-    // For ownership checks (e.g., canDeleteMessages vs canDeleteAllMessages)
+    // Check resource ownership when required
     if (options.ownershipKey && options.getOwnerId) {
-      const ownerId = await Promise.resolve(options.getOwnerId(req));
-      const isOwner = userId === ownerId;
+      const ownerId = await options.getOwnerId(req);
 
-      if (!isOwner && !permissions[options.ownershipKey]) {
-        return res.status(403).json({
-          message: `Access denied: You can only ${permissionKey.toLowerCase()} your own items`,
-        });
+      if (ownerId == null) {
+        throw new apiError(404, "Resource not found");
+      }
+
+      const isResourceOwner =
+        ownerId != null && String(userId) === String(ownerId);
+
+      const canManageAll = getNestedPermission(
+        permissions,
+        options.ownershipKey,
+      );
+
+      if (!isResourceOwner && canManageAll !== true) {
+        throw new apiError(
+          403,
+          "You can only perform this action on your own resources",
+        );
       }
     }
 
+    // Make permissions available to controllers
     req.permission = permissions;
+
     next();
   });
 };
