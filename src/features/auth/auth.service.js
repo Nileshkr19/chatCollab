@@ -33,14 +33,14 @@ const getVerificationBaseUrl = () =>
   (
     process.env.FRONTEND_URL ||
     process.env.CLIENT_URL ||
-    "http://localhost:3000"
+    "http://localhost:5000/api"
   ).replace(/\/+$/, "") + "/verify-email";
 
 const getResetPasswordBaseUrl = () =>
   (
     process.env.FRONTEND_URL ||
     process.env.CLIENT_URL ||
-    "http://localhost:3000"
+    "http://localhost:5000/api"
   ).replace(/\/+$/, "");
 
 export const registerService = async ({

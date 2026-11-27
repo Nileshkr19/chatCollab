@@ -46,10 +46,10 @@ export const login = asyncHandler(async (req, res) => {
     res.cookie("refreshToken", refreshToken, COOKIE_OPTIONS);
 
     return res.status(200).json(
-      new apiResponse(200, "User logged in successfully", {
+      new apiResponse(200, {
         user,
         accessToken,
-      }),
+      }, "User logged in successfully"),
     );
   } catch (err) {
     logger.error("Error occurred while logging in user", err);
