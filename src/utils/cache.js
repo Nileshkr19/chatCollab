@@ -24,8 +24,10 @@ export const setCache = async (key, value, ttl = DEFAULT_CACHE_TTL) => {
 export const deleteCache = async (key) => {
   try {
     await getRedis().del(key);
+    return true;
   } catch (error) {
     logger.error(`Error deleting cache for key ${key}: ${error.message}`);
+    return false;
   }
 };
 
@@ -35,9 +37,12 @@ export const cacheDeletePattern = async (pattern) => {
     if (keys.length > 0) {
       await getRedis().del(keys);
     }
+
+    return true;
   } catch (error) {
     logger.error(
       `Error deleting cache with pattern ${pattern}: ${error.message}`,
     );
+    return false;
   }
 };

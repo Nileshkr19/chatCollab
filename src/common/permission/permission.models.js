@@ -1,116 +1,138 @@
 import mongoose from "mongoose";
+import { CHAT_ROLES } from "./permission.constants.js";
+
+const permissionGroupOptions = { _id: false };
+
+// Message permissions
+const messagePermissionsSchema = new mongoose.Schema(
+  {
+    send: { type: Boolean, default: false },
+    editOwn: { type: Boolean, default: false },
+    editAll: { type: Boolean, default: false },
+    deleteOwn: { type: Boolean, default: false },
+    deleteAll: { type: Boolean, default: false },
+    pin: { type: Boolean, default: false },
+  },
+  permissionGroupOptions,
+);
+
+// Attachment permissions
+const attachmentPermissionsSchema = new mongoose.Schema(
+  {
+    deleteOwn: { type: Boolean, default: false },
+    deleteAll: { type: Boolean, default: false },
+  },
+  permissionGroupOptions,
+);
+
+// Channel permissions
+const channelPermissionsSchema = new mongoose.Schema(
+  {
+    create: { type: Boolean, default: false },
+    edit: { type: Boolean, default: false },
+    delete: { type: Boolean, default: false },
+    archive: { type: Boolean, default: false },
+  },
+  permissionGroupOptions,
+);
+
+// Member permissions
+const memberPermissionsSchema = new mongoose.Schema(
+  {
+    invite: { type: Boolean, default: false },
+    remove: { type: Boolean, default: false },
+    manageRoles: { type: Boolean, default: false },
+  },
+  permissionGroupOptions,
+);
+
+// Moderation permissions
+const moderationPermissionsSchema = new mongoose.Schema(
+  {
+    mute: { type: Boolean, default: false },
+    ban: { type: Boolean, default: false },
+  },
+  permissionGroupOptions,
+);
+
+// Reaction permissions
+const reactionPermissionsSchema = new mongoose.Schema(
+  {
+    add: { type: Boolean, default: false },
+    removeOwn: { type: Boolean, default: false },
+    removeAll: { type: Boolean, default: false },
+  },
+  permissionGroupOptions,
+);
+
+// Thread permissions
+const threadPermissionsSchema = new mongoose.Schema(
+  {
+    create: { type: Boolean, default: false },
+    reply: { type: Boolean, default: false },
+  },
+  permissionGroupOptions,
+);
 
 const chatPermissionSchema = new mongoose.Schema(
   {
     workspaceId: {
       type: String,
       required: true,
+      index: true,
     },
+
     role: {
       type: String,
-      enum: ["ADMIN", "MANAGER", "MEMBER"],
+      enum: CHAT_ROLES,
       required: true,
     },
+
     description: {
       type: String,
       default: null,
-      required: false,
     },
+
     permissions: {
-      // Message permissions
-      canSendMessages: {
-        type: Boolean,
-        default: true,
-      },
-      canEditMessages: {
-        type: Boolean,
-        default: false,
-      },
-      canEditAllMessages: {
-        type: Boolean,
-        default: false,
-      },
-      canDeleteMessages: {
-        type: Boolean,
-        default: false,
-      },
-      canDeleteAllMessages: {
-        type: Boolean,
-        default: false,
+      messages: {
+        type: messagePermissionsSchema,
+        required: true,
       },
 
-      // Channel permissions
-      canCreateChannels: {
-        type: Boolean,
-        default: false,
-      },
-      canEditChannels: {
-        type: Boolean,
-        default: false,
-      },
-      canDeleteChannels: {
-        type: Boolean,
-        default: false,
-      },
-      canArchiveChannels: {
-        type: Boolean,
-        default: false,
+      attachments: {
+        type: attachmentPermissionsSchema,
+        required: true,
       },
 
-      // Member management
-      canInviteMembers: {
-        type: Boolean,
-        default: false,
-      },
-      canRemoveMembers: {
-        type: Boolean,
-        default: false,
-      },
-      canManageRoles: {
-        type: Boolean,
-        default: false,
+      channels: {
+        type: channelPermissionsSchema,
+        required: true,
       },
 
-      // Moderation
-      canMuteUsers: {
-        type: Boolean,
-        default: false,
-      },
-      canBanUsers: {
-        type: Boolean,
-        default: false,
-      },
-      canPinMessages: {
-        type: Boolean,
-        default: false,
+      members: {
+        type: memberPermissionsSchema,
+        required: true,
       },
 
-      // Reactions
-      canAddReactions: {
-        type: Boolean,
-        default: true,
-      },
-      canRemoveReactions: {
-        type: Boolean,
-        default: false,
-      },
-      canRemoveAllReactions: {
-        type: Boolean,
-        default: false,
+      moderation: {
+        type: moderationPermissionsSchema,
+        required: true,
       },
 
-      // Thread permissions
-      canCreateThreads: {
-        type: Boolean,
-        default: true,
+      reactions: {
+        type: reactionPermissionsSchema,
+        required: true,
       },
-      canReplyInThreads: {
-        type: Boolean,
-        default: true,
+
+      threads: {
+        type: threadPermissionsSchema,
+        required: true,
       },
     },
   },
-  { timestamps: true },
+  {
+    timestamps: true,
+  },
 );
 
 chatPermissionSchema.index({ workspaceId: 1, role: 1 }, { unique: true });

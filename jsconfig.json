@@ -5,7 +5,8 @@
       "@config/*": ["src/config/*"],
       "@utils/*": ["src/utils/*"],
       "@middleware/*": ["src/middleware/*"],
-      "@features/*": ["src/features/*"]
+      "@features/*": ["src/features/*"],
+      "@common/*": ["src/common/*"]
     }
   }
 }

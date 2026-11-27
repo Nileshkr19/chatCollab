@@ -11,6 +11,7 @@ const aliases = {
   "@utils": "src/utils",
   "@middleware": "src/middleware",
   "@features": "src/features",
+  "@common":"src/common"
 };
 
 export function resolve(specifier, context, defaultResolve) {
