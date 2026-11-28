@@ -43,6 +43,10 @@ const isValidPermissionPath = (permissionPath) => {
 // ==========================================
 
 export const checkPermission = (permissionPath, options = {}) => {
+  const permissionPaths = Array.isArray(permissionPath)
+    ? permissionPath
+    : [permissionPath];
+
   return asyncHandler(async (req, res, next) => {
     const workspaceId = req.params.workspaceId || req.body?.workspaceId;
 
@@ -60,11 +64,8 @@ export const checkPermission = (permissionPath, options = {}) => {
     }
 
     // Validate requested permission
-    if (!isValidPermissionPath(permissionPath)) {
-      throw new apiError(
-        500,
-        `Invalid permission configuration: ${permissionPath}`,
-      );
+    if (!permissionPaths.every(isValidPermissionPath)) {
+      throw new apiError(500, "Invalid permission configuration");
     }
 
     // Validate optional ownership permission
@@ -107,10 +108,11 @@ export const checkPermission = (permissionPath, options = {}) => {
       await setCache(cacheKey, permissions, PERMISSION_CACHE_TTL);
     }
 
-    // Check base permission
-    const hasPermission = getNestedPermission(permissions, permissionPath);
+    const hasPermission = permissionPaths.some(
+      (path) => getNestedPermission(permissions, path) === true,
+    );
 
-    if (hasPermission !== true) {
+    if (!hasPermission) {
       throw new apiError(403, "Access denied: Insufficient permissions");
     }
 
