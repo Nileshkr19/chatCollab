@@ -48,18 +48,35 @@ export const checkPermission = (permissionPath, options = {}) => {
     : [permissionPath];
 
   return asyncHandler(async (req, res, next) => {
-    const workspaceId = req.params.workspaceId || req.body?.workspaceId;
+    const channelRole = req.channelMembership?.role;
+    const isWorkspaceOwner = req.membership?.role === "OWNER";
 
-    const role = req.channelMembership?.role || req.membership?.role;
-
-    const userId = req.user?.userId;
+    const workspaceId = req.params.workspaceId || req.body.workspaceId;
 
     // Validate workspace and user context
     if (!workspaceId) {
       throw new apiError(400, "Workspace ID is required");
     }
 
-    if (!role || !userId) {
+    const userId = req.user?.userId;
+
+    if (!workspaceId || !userId) {
+      throw new apiError(401, "Unauthorized");
+    }
+
+    // Workspace OWNER has a separate bypass.
+    if (isWorkspaceOwner) {
+      return next();
+    }
+
+    // Other users must have an explicit channel role.
+    if (!channelRole) {
+      throw new apiError(403, "Channel membership required");
+    }
+
+    const role = channelRole;
+
+    if (!role) {
       throw new apiError(403, "Access denied: No role or user found");
     }
 
