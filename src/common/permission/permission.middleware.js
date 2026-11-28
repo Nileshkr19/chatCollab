@@ -4,7 +4,7 @@ import ChatPermission from "./permission.models.js";
 import { getCache, setCache } from "@utils/cache.js";
 import { redisKeys } from "@utils/redisKey.js";
 import logger from "@utils/logger.js";
-import { CHAT_PERMISSION_GROUPS } from "./permission.constants.js";
+import { CHANNEL_PERMISSION_GROUPS } from "./permission.constants.js";
 
 // Permission cache TTL: 5 minutes
 const PERMISSION_CACHE_TTL = 5 * 60;
@@ -33,8 +33,8 @@ const isValidPermissionPath = (permissionPath) => {
   }
 
   return (
-    Object.hasOwn(CHAT_PERMISSION_GROUPS, group) &&
-    CHAT_PERMISSION_GROUPS[group].includes(key)
+    Object.hasOwn(CHANNEL_PERMISSION_GROUPS, group) &&
+    CHANNEL_PERMISSION_GROUPS[group].includes(key)
   );
 };
 

@@ -1,5 +1,8 @@
 import { z } from "zod";
-import { CHAT_ROLES, CHAT_PERMISSION_GROUPS } from "./permission.constants.js";
+import {
+  CHAT_ROLES,
+  CHANNEL_PERMISSION_GROUPS,
+} from "./permission.constants.js";
 
 // Validate role parameter
 export const permissionRoleSchema = z.object({
@@ -13,7 +16,7 @@ export const permissionWorkspaceParamsSchema = z.object({
 
 // Build nested permission validation dynamically
 const permissionGroupSchemas = Object.fromEntries(
-  Object.entries(CHAT_PERMISSION_GROUPS).map(([group, keys]) => [
+  Object.entries(CHANNEL_PERMISSION_GROUPS).map(([group, keys]) => [
     group,
     z
       .object(Object.fromEntries(keys.map((key) => [key, z.boolean()])))

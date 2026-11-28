@@ -95,7 +95,7 @@ const chatPermissionSchema = new mongoose.Schema(
       },
 
 
-      channelMember: {
+      channelMembers: {
         type: channelMemberPermissionsSchema,
         required: true,
       },
