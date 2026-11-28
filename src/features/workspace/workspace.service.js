@@ -2,6 +2,9 @@ import { prisma } from "../../config/connectPostgres.js";
 import logger from "../../utils/logger.js";
 import slugify from "slugify";
 import apiError from "../../utils/apiError.js";
+import { seedWorkspacePermissionsService } from "../../common/permission/workspace-permission.service.js";
+
+import { seedChannelPermissionsService } from "../../common/permission/permission.service.js";
 
 const generateUniqueSlug = async (name) => {
   const baseSlug = slugify(name, {
@@ -47,6 +50,10 @@ export const createWorkspaceService = async (userId, { name, logo_url }) => {
     });
     return ws;
   });
+  await Promise.all([
+    seedWorkspacePermissionsService(workspace.id),
+    seedChannelPermissionsService(workspace.id),
+  ]);
   logger.info(
     `Workspace created with ID: ${workspace.id} and slug: ${workspace.slug}`,
   );
@@ -169,8 +176,8 @@ export const updateWorkspaceService = async (
     throw new apiError(404, "Workspace not found");
   }
 
-  if (workspace.owner_id !== userId) {
-    throw new apiError(403, "Only workspace owner can update the workspace");
+  if (targetUserId === requestingUserId) {
+    throw new apiError(400, "You cannot change your own role");
   }
 
   let slug;
@@ -452,9 +459,6 @@ export const removeMemberService = async (
     throw new apiError(404, "Workspace not found");
   }
 
-  if (workspace.owner_id !== requestingUserId) {
-    throw new apiError(403, "Only workspace owner can remove members");
-  }
 
   if (targetUserId === requestingUserId) {
     throw new apiError(
@@ -583,7 +587,7 @@ export const transferOwnershipService = async (
     },
   });
 
-  if (!newOwnerMembership) {
+  if (!newOwnerMembership || !newOwnerMembership.is_active) {
     throw new apiError(
       404,
       "New owner must be an active member of the workspace",

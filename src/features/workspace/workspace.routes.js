@@ -13,7 +13,7 @@ import {
   transferOwnership,
 } from "./workspace.controller.js";
 
-import { isMember, isManager, isOwner } from "./workspace.middleware.js";
+import { isMember, isOwner } from "./workspace.middleware.js";
 import {
   createWorkspaceSchema,
   updateWorkspaceSchema,
@@ -24,7 +24,8 @@ import {
 import validate from "../../middleware/validate.middleware.js";
 import { getWorkspaceRateLimiter } from "../../middleware/rateLimitter.middleware.js";
 
-import permissionRoutes from "@common/permission/permission.routes.js";
+import workspacePermissionRoutes from "@common/permission/workspace-permission.routes.js";
+import { authorizeWorkspacePermission } from "@common/permission/workspace-permission.middleware.js";
 
 const router = Router();
 
@@ -32,8 +33,16 @@ const router = Router();
 const workspaceRateLimiterMiddleware = (req, res, next) =>
   getWorkspaceRateLimiter()(req, res, next);
 
+const authorizeManagerInvite = (req, res, next) => {
+  if (req.body?.role !== "MANAGER") {
+    return next();
+  }
+
+  return authorizeWorkspacePermission("members.manageRoles")(req, res, next);
+};
+
 router.use(workspaceRateLimiterMiddleware);
-router.use("/:workspaceId/permissions", permissionRoutes);
+router.use("/:workspaceId/permissions", workspacePermissionRoutes);
 
 router.post("/", validate(createWorkspaceSchema), createWorkspace);
 router.get("/", getUserWorkspaces);
@@ -49,17 +58,24 @@ router.delete("/:workspaceId", isOwner, deleteWorkspace);
 router.get("/:workspaceId/members", isMember, getWorkspaceMembers);
 router.post(
   "/:workspaceId/members/invite",
-  isManager,
+  isMember,
+  authorizeManagerInvite,
   validate(inviteMemberSchema),
   inviteMember,
 );
 router.patch(
   "/:workspaceId/members/:userId",
-  isManager,
+  isMember,
+  authorizeWorkspacePermission("members.manageRoles"),
   validate(updateMemberRoleSchema),
   updateMemberRole,
 );
-router.delete("/:workspaceId/members/:userId", isManager, removeMember);
+router.delete(
+  "/:workspaceId/members/:userId",
+  isMember,
+  authorizeWorkspacePermission("members.remove"),
+  removeMember,
+);
 
 router.post("/:workspaceId/leave", isMember, leaveWorkspace);
 router.post(
