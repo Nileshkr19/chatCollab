@@ -27,7 +27,6 @@ const workspacePermissionSchema = new mongoose.Schema(
     workspaceId: {
       type: String,
       required: true,
-      index: true,
     },
 
     role: {

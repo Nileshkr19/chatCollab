@@ -132,10 +132,10 @@ const invalidatePermissionCache = async (workspaceId, role) => {
 };
 
 // ==========================================
-// SEED WORKSPACE PERMISSIONS
+// SEED CHANNEL PERMISSIONS
 // ==========================================
 
-export const seedWorkspacePermissionsService = async (workspaceId) => {
+export const seedChannelPermissionsService = async (workspaceId) => {
   try {
     validateWorkspaceId(workspaceId);
 
@@ -216,7 +216,7 @@ export const getPermissionService = async (workspaceId, role) => {
 };
 
 // ==========================================
-// GET ALL WORKSPACE PERMISSIONS
+// GET ALL CHANNEL PERMISSIONS
 // ==========================================
 
 export const getAllPermissionsService = async (workspaceId) => {

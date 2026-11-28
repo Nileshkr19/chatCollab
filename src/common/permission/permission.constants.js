@@ -1,6 +1,6 @@
 export const CHAT_ROLES = ["ADMIN", "MANAGER", "MEMBER"];
 
-export const WORKSPACE_ROLES = ["MANAGER", "MEMBER"];
+export const WORKSPACE_ROLES = ["MANAGER", "MEMBER",];
 
 // ==========================================
 // WORKSPACE PERMISSIONS

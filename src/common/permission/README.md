@@ -160,7 +160,7 @@ The permission system is a **role-based access control (RBAC)** that manages wha
 
 ## Service Functions
 
-### `seedWorkspacePermissionsService(workspaceId)`
+### `seedChannelPermissionsService(workspaceId)`
 
 **Purpose:** Initialize default permissions for a new workspace
 
@@ -180,7 +180,7 @@ export const createWorkspaceService = async (workspaceData) => {
   const workspace = await Workspace.create(workspaceData);
 
   // 🔑 MUST DO THIS
-  await seedWorkspacePermissionsService(workspace._id);
+  await seedChannelPermissionsService(workspace._id);
 
   return workspace;
 };
@@ -397,7 +397,7 @@ export const updateMemberPermissionsController = asyncHandler(
 ### When Creating a New Workspace
 
 - [ ] Create workspace in database
-- [ ] Call `seedWorkspacePermissionsService(workspaceId)` ← **IMPORTANT**
+- [ ] Call `seedChannelPermissionsService(workspaceId)` ← **IMPORTANT**
 - [ ] Add workspace owner as first member
 - [ ] Return workspace
 
@@ -432,7 +432,7 @@ export const deleteMessageService = async (messageId, userId) => {
 };
 
 // Seed permissions when creating workspace
-await seedWorkspacePermissionsService(workspace._id);
+await seedChannelPermissionsService(workspace._id);
 ```
 
 ### ❌ DON'T
@@ -447,7 +447,7 @@ export const deleteMessageService = async (messageId, userId) => {
 
 // Don't forget to seed permissions
 const workspace = await Workspace.create(data);
-// ❌ WRONG - Missing seedWorkspacePermissionsService()
+// ❌ WRONG - Missing seedChannelPermissionsService()
 
 // Don't use permission middleware for workspace-level operations
 router.delete("/:workspaceId", checkPermission("canDeleteWorkspace"), ...);
@@ -479,7 +479,7 @@ router.delete("/:workspaceId", isOwner, ...);
 
 **Solution:**
 
-1. Check if workspace was created with `seedWorkspacePermissionsService()`
+1. Check if workspace was created with `seedChannelPermissionsService()`
 2. Clear Redis cache
 3. Verify permission in database
 
@@ -489,7 +489,7 @@ router.delete("/:workspaceId", isOwner, ...);
 
 **Solution:**
 
-1. Run `seedWorkspacePermissionsService(workspaceId)` for that workspace
+1. Run `seedChannelPermissionsService(workspaceId)` for that workspace
 2. Verify workspaceId and role match
 
 ### Issue: Admin updated permission but change not reflected
