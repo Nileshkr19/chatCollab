@@ -69,9 +69,11 @@ router.get(
 // Bulk delete messages
 router.delete(
   "/bulk-delete",
+  checkChannelNotArchived,
   validate({
     body: bulkDeleteMessagesSchema,
   }),
+  checkPermission(["messages.deleteOwn", "messages.deleteAll"]),
   bulkDeleteMessagesController,
 );
 
@@ -154,6 +156,7 @@ router.get(
 // Delete message
 router.delete(
   "/:messageId",
+  checkChannelNotArchived,
   validate({
     params: channelMessageParamsSchema,
   }),

@@ -1,18 +1,60 @@
 export const CHAT_ROLES = ["ADMIN", "MANAGER", "MEMBER"];
 
-// Supported permission structure
-export const CHAT_PERMISSION_GROUPS = {
-  messages: ["send", "editOwn", "editAll", "deleteOwn", "deleteAll", "pin"],
-  attachments: ["deleteOwn", "deleteAll"],
+export const WORKSPACE_ROLES = ["MANAGER", "MEMBER",];
+
+// ==========================================
+// WORKSPACE PERMISSIONS
+// ==========================================
+
+export const WORKSPACE_PERMISSION_GROUPS = {
   channels: ["create", "edit", "delete", "archive"],
   members: ["invite", "remove", "manageRoles"],
+};
+
+export const DEFAULT_WORKSPACE_PERMISSIONS = {
+  MANAGER: {
+    channels: {
+      create: true,
+      edit: true,
+      delete: false,
+      archive: true,
+    },
+    members: {
+      invite: true,
+      remove: true,
+      manageRoles: false,
+    },
+  },
+
+  MEMBER: {
+    channels: {
+      create: false,
+      edit: false,
+      delete: false,
+      archive: false,
+    },
+    members: {
+      invite: false,
+      remove: false,
+      manageRoles: false,
+    },
+  },
+};
+
+// ==========================================
+// CHANNEL PERMISSIONS
+// ==========================================
+
+export const CHANNEL_PERMISSION_GROUPS = {
+  messages: ["send", "editOwn", "editAll", "deleteOwn", "deleteAll", "pin"],
+  attachments: ["deleteOwn", "deleteAll"],
+  channelMembers: ["invite", "remove", "manageRoles"],
   moderation: ["mute", "ban"],
   reactions: ["add", "removeOwn", "removeAll"],
   threads: ["create", "reply"],
 };
 
-// Default permissions by role
-export const DEFAULT_PERMISSIONS = {
+export const DEFAULT_CHANNEL_PERMISSIONS = {
   ADMIN: {
     messages: {
       send: true,
@@ -20,19 +62,13 @@ export const DEFAULT_PERMISSIONS = {
       editAll: true,
       deleteOwn: true,
       deleteAll: true,
-      pin:true,
+      pin: true,
     },
     attachments: {
       deleteOwn: true,
       deleteAll: true,
     },
-    channels: {
-      create: true,
-      edit: true,
-      delete: true,
-      archive: true,
-    },
-    members: {
+    channelMembers: {
       invite: true,
       remove: true,
       manageRoles: true,
@@ -59,19 +95,13 @@ export const DEFAULT_PERMISSIONS = {
       editAll: false,
       deleteOwn: true,
       deleteAll: false,
-      pin:true,
+      pin: true,
     },
     attachments: {
       deleteOwn: true,
       deleteAll: false,
     },
-    channels: {
-      create: true,
-      edit: true,
-      delete: false,
-      archive: true,
-    },
-    members: {
+    channelMembers: {
       invite: true,
       remove: true,
       manageRoles: false,
@@ -98,19 +128,13 @@ export const DEFAULT_PERMISSIONS = {
       editAll: false,
       deleteOwn: true,
       deleteAll: false,
-      pin:false
+      pin: false,
     },
     attachments: {
       deleteOwn: true,
       deleteAll: false,
     },
-    channels: {
-      create: false,
-      edit: false,
-      delete: false,
-      archive: false,
-    },
-    members: {
+    channelMembers: {
       invite: false,
       remove: false,
       manageRoles: false,

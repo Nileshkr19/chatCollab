@@ -6,8 +6,8 @@ import apiError from "@utils/apiError.js";
 
 import {
   CHAT_ROLES,
-  CHAT_PERMISSION_GROUPS,
-  DEFAULT_PERMISSIONS,
+  CHANNEL_PERMISSION_GROUPS,
+  DEFAULT_CHANNEL_PERMISSIONS,
 } from "./permission.constants.js";
 
 // ==========================================
@@ -34,18 +34,20 @@ const validateRole = (role) => {
 
 const validateDefaultPermissions = () => {
   // Validate roles
-  const defaultRoles = Object.keys(DEFAULT_PERMISSIONS);
+  const defaultRoles = Object.keys(DEFAULT_CHANNEL_PERMISSIONS);
 
   if (
     defaultRoles.length !== CHAT_ROLES.length ||
-    CHAT_ROLES.some((role) => !Object.hasOwn(DEFAULT_PERMISSIONS, role))
+    CHAT_ROLES.some((role) => !Object.hasOwn(DEFAULT_CHANNEL_PERMISSIONS, role))
   ) {
-    throw new Error("DEFAULT_PERMISSIONS contains missing or invalid roles");
+    throw new Error(
+      "DEFAULT_CHANNEL_PERMISSIONS contains missing or invalid roles",
+    );
   }
 
   // Validate each role's permission structure
   for (const role of CHAT_ROLES) {
-    const rolePermissions = DEFAULT_PERMISSIONS[role];
+    const rolePermissions = DEFAULT_CHANNEL_PERMISSIONS[role];
 
     if (
       !rolePermissions ||
@@ -56,7 +58,7 @@ const validateDefaultPermissions = () => {
     }
 
     const groups = Object.keys(rolePermissions);
-    const expectedGroups = Object.keys(CHAT_PERMISSION_GROUPS);
+    const expectedGroups = Object.keys(CHANNEL_PERMISSION_GROUPS);
 
     // Validate permission groups
     if (
@@ -68,7 +70,7 @@ const validateDefaultPermissions = () => {
 
     // Validate permission keys and values
     for (const [group, permissionKeys] of Object.entries(
-      CHAT_PERMISSION_GROUPS,
+      CHANNEL_PERMISSION_GROUPS,
     )) {
       const groupPermissions = rolePermissions[group];
 
@@ -130,10 +132,10 @@ const invalidatePermissionCache = async (workspaceId, role) => {
 };
 
 // ==========================================
-// SEED WORKSPACE PERMISSIONS
+// SEED CHANNEL PERMISSIONS
 // ==========================================
 
-export const seedWorkspacePermissionsService = async (workspaceId) => {
+export const seedChannelPermissionsService = async (workspaceId) => {
   try {
     validateWorkspaceId(workspaceId);
 
@@ -141,7 +143,7 @@ export const seedWorkspacePermissionsService = async (workspaceId) => {
       workspaceId,
       role,
       description: `Default permissions for ${role} role in workspace ${workspaceId}`,
-      permissions: DEFAULT_PERMISSIONS[role],
+      permissions: DEFAULT_CHANNEL_PERMISSIONS[role],
     }));
 
     // Create missing documents without overwriting customized permissions
@@ -214,7 +216,7 @@ export const getPermissionService = async (workspaceId, role) => {
 };
 
 // ==========================================
-// GET ALL WORKSPACE PERMISSIONS
+// GET ALL CHANNEL PERMISSIONS
 // ==========================================
 
 export const getAllPermissionsService = async (workspaceId) => {
@@ -281,7 +283,7 @@ export const updatePermissionService = async (
 
     // Validate permission groups
     for (const [group, permissions] of permissionGroups) {
-      if (!Object.hasOwn(CHAT_PERMISSION_GROUPS, group)) {
+      if (!Object.hasOwn(CHANNEL_PERMISSION_GROUPS, group)) {
         throw new apiError(400, `Invalid permission group: ${group}`);
       }
 
@@ -301,7 +303,7 @@ export const updatePermissionService = async (
 
       // Validate individual permission keys and values
       for (const [key, value] of entries) {
-        if (!CHAT_PERMISSION_GROUPS[group].includes(key)) {
+        if (!CHANNEL_PERMISSION_GROUPS[group].includes(key)) {
           throw new apiError(400, `Invalid permission: ${group}.${key}`);
         }
 
@@ -372,7 +374,7 @@ export const resetPermissionsService = async (workspaceId, role) => {
     validateWorkspaceId(workspaceId);
     validateRole(role);
 
-    const defaultPermissions = DEFAULT_PERMISSIONS[role];
+    const defaultPermissions = DEFAULT_CHANNEL_PERMISSIONS[role];
 
     const updated = await ChatPermission.findOneAndUpdate(
       { workspaceId, role },

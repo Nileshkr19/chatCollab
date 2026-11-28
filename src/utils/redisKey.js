@@ -18,6 +18,8 @@ export const redisKeys = {
   channel: (channelId) => `cache:channel:${channelId}`,
   workspaceChannels: (workspaceId) => `cache:workspace:${workspaceId}:channels`,
   channelMembers: (channelId) => `cache:channel:${channelId}:members`,
+  workspacePermissions: (workspaceId, role) =>
+    `cache:workspace-permissions:${workspaceId}:${role}`,
 
   // ─── Permissions ──────────────────────────────────────
   chatPermissions: (workspaceId, role) =>

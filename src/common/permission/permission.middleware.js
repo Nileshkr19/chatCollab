@@ -4,7 +4,7 @@ import ChatPermission from "./permission.models.js";
 import { getCache, setCache } from "@utils/cache.js";
 import { redisKeys } from "@utils/redisKey.js";
 import logger from "@utils/logger.js";
-import { CHAT_PERMISSION_GROUPS } from "./permission.constants.js";
+import { CHANNEL_PERMISSION_GROUPS } from "./permission.constants.js";
 
 // Permission cache TTL: 5 minutes
 const PERMISSION_CACHE_TTL = 5 * 60;
@@ -33,8 +33,8 @@ const isValidPermissionPath = (permissionPath) => {
   }
 
   return (
-    Object.hasOwn(CHAT_PERMISSION_GROUPS, group) &&
-    CHAT_PERMISSION_GROUPS[group].includes(key)
+    Object.hasOwn(CHANNEL_PERMISSION_GROUPS, group) &&
+    CHANNEL_PERMISSION_GROUPS[group].includes(key)
   );
 };
 
@@ -43,28 +43,46 @@ const isValidPermissionPath = (permissionPath) => {
 // ==========================================
 
 export const checkPermission = (permissionPath, options = {}) => {
+  const permissionPaths = Array.isArray(permissionPath)
+    ? permissionPath
+    : [permissionPath];
+
   return asyncHandler(async (req, res, next) => {
-    const workspaceId = req.params.workspaceId || req.body?.workspaceId;
+    const channelRole = req.channelMembership?.role;
+    const isWorkspaceOwner = req.membership?.role === "OWNER";
 
-    const role = req.channelMembership?.role || req.membership?.role;
-
-    const userId = req.user?.userId;
+    const workspaceId = req.params.workspaceId || req.body.workspaceId;
 
     // Validate workspace and user context
     if (!workspaceId) {
       throw new apiError(400, "Workspace ID is required");
     }
 
-    if (!role || !userId) {
+    const userId = req.user?.userId;
+
+    if (!workspaceId || !userId) {
+      throw new apiError(401, "Unauthorized");
+    }
+
+    // Workspace OWNER has a separate bypass.
+    if (isWorkspaceOwner) {
+      return next();
+    }
+
+    // Other users must have an explicit channel role.
+    if (!channelRole) {
+      throw new apiError(403, "Channel membership required");
+    }
+
+    const role = channelRole;
+
+    if (!role) {
       throw new apiError(403, "Access denied: No role or user found");
     }
 
     // Validate requested permission
-    if (!isValidPermissionPath(permissionPath)) {
-      throw new apiError(
-        500,
-        `Invalid permission configuration: ${permissionPath}`,
-      );
+    if (!permissionPaths.every(isValidPermissionPath)) {
+      throw new apiError(500, "Invalid permission configuration");
     }
 
     // Validate optional ownership permission
@@ -107,10 +125,11 @@ export const checkPermission = (permissionPath, options = {}) => {
       await setCache(cacheKey, permissions, PERMISSION_CACHE_TTL);
     }
 
-    // Check base permission
-    const hasPermission = getNestedPermission(permissions, permissionPath);
+    const hasPermission = permissionPaths.some(
+      (path) => getNestedPermission(permissions, path) === true,
+    );
 
-    if (hasPermission !== true) {
+    if (!hasPermission) {
       throw new apiError(403, "Access denied: Insufficient permissions");
     }
 

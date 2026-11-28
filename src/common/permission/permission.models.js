@@ -25,19 +25,9 @@ const attachmentPermissionsSchema = new mongoose.Schema(
   permissionGroupOptions,
 );
 
-// Channel permissions
-const channelPermissionsSchema = new mongoose.Schema(
-  {
-    create: { type: Boolean, default: false },
-    edit: { type: Boolean, default: false },
-    delete: { type: Boolean, default: false },
-    archive: { type: Boolean, default: false },
-  },
-  permissionGroupOptions,
-);
 
 // Member permissions
-const memberPermissionsSchema = new mongoose.Schema(
+const channelMemberPermissionsSchema = new mongoose.Schema(
   {
     invite: { type: Boolean, default: false },
     remove: { type: Boolean, default: false },
@@ -104,13 +94,9 @@ const chatPermissionSchema = new mongoose.Schema(
         required: true,
       },
 
-      channels: {
-        type: channelPermissionsSchema,
-        required: true,
-      },
 
-      members: {
-        type: memberPermissionsSchema,
+      channelMembers: {
+        type: channelMemberPermissionsSchema,
         required: true,
       },
 
